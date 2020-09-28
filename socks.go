@@ -2,16 +2,13 @@ package main
 
 import (
 	"flag"
-	"sync"
 	"time"
 
-	"git.superpool.io/Jackarain/wsporxy/socks"
+	"git.superpool.io/Jackarain/wsporxy/wsproxy"
 )
 
 var (
 	help bool
-
-	speedLimit sync.Map
 )
 
 func init() {
@@ -19,16 +16,25 @@ func init() {
 }
 
 func main() {
-	sock5server, _ := socks.NewSocks5Server()
-	go sock5server.Start("0.0.0.0:1080")
+	server := wsproxy.NewServer(nil)
+	go server.Start("0.0.0.0:8080")
 
-	time.Sleep(time.Duration(5) * time.Second)
+	time.Sleep(time.Duration(5000) * time.Second)
 
-	sock5server.Stop()
+	server.Stop()
 
-	time.Sleep(time.Duration(5) * time.Second)
+	/*
+		sock5server, _ := socks.NewSocks5Server()
+		go sock5server.Start("0.0.0.0:1080")
 
-	sock5server.FetchTraffic("")
+		time.Sleep(time.Duration(5) * time.Second)
+
+		sock5server.Stop()
+
+		time.Sleep(time.Duration(5) * time.Second)
+
+		sock5server.FetchTraffic("")
+	*/
 
 	/*
 		flag.Parse()

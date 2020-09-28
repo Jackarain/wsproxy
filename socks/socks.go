@@ -21,8 +21,6 @@ type onForward func(user string, target net.Addr)
 // onForwardError 每当客户端发起转发请求失败或出错的时候触发.
 type onForwardError func(user string, target net.Addr)
 
-//
-
 // Socks5Server ...
 type Socks5Server struct {
 	listen       *net.TCPListener
@@ -37,6 +35,8 @@ type Socks5Server struct {
 }
 
 func (s *Socks5Server) handleClientConn(c *net.TCPConn) {
+	var b []byte
+	c.Read(b)
 }
 
 // NewSocks5Server ...

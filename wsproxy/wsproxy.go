@@ -45,8 +45,15 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 
 	if peek[0] == 0x05 {
 		// 如果是socks5协议, 则调用socks5协议库, 若是client模式直接使用tls转发到服务器.
-		idx := rand.Intn(len(s.config.Servers))
-		StartConnectServer(conn, reader, writer, s.config.Servers[idx])
+		numServer := len(s.config.Servers)
+		if numServer > 0 {
+			// 随机选择一个上游服务器用于转发socks5协议.
+			idx := rand.Intn(numServer)
+			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
+		} else {
+			// 没有配置上游服务器地址, 直接作为socks5服务器提供socks5服务.
+			StartSocks5Proxy(conn, reader, writer)
+		}
 	} else if peek[0] == 0x47 {
 		// 如果'G', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
 		fmt.Println("Http proxy protocol")

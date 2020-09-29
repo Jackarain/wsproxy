@@ -27,7 +27,8 @@ func parseAuthority(location *url.URL) string {
 }
 
 // StartConnectServer ...
-func StartConnectServer(tcpConn *net.TCPConn, reader *bufio.Reader, writer *bufio.Writer, server string) {
+func StartConnectServer(tcpConn *net.TCPConn,
+	reader *bufio.Reader, writer *bufio.Writer, server string) {
 	defer tcpConn.Close()
 
 	fmt.Println("Start proxy with client:", tcpConn.RemoteAddr())

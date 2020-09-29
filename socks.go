@@ -17,7 +17,7 @@ func init() {
 
 func main() {
 	server := wsproxy.NewServer(nil)
-	go server.Start("0.0.0.0:8080")
+	go server.Start("0.0.0.0:1080")
 
 	time.Sleep(time.Duration(5000) * time.Second)
 

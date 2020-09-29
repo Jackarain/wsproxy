@@ -36,19 +36,19 @@ func proxy(dst io.Writer, src io.Reader, errCh chan error) {
 	errCh <- err
 }
 
-// isIPv6 ...
 func isIPv6(str string) bool {
 	ip := net.ParseIP(str)
 	return ip.To4() == nil
 }
 
-// isIPv4 ...
 func isIPv4(str string) bool {
 	ip := net.ParseIP(str)
 	return ip.To4() != nil
 }
 
 func authMethod(reader *bufio.Reader, writer *bufio.Writer) bool {
+	defer writer.Flush()
+
 	av, err := reader.ReadByte()
 	if err != nil || av != 1 {
 		fmt.Println("Socks5 auth version invalid")
@@ -314,5 +314,5 @@ func StartSocks5Proxy(tcpConn *net.TCPConn,
 		}
 	}
 
-	fmt.Println("Exit socks5 proxy with client:", tcpConn.RemoteAddr())
+	fmt.Println("Leave socks5 proxy with client:", tcpConn.RemoteAddr())
 }

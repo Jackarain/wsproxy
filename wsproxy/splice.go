@@ -1,11 +1,11 @@
 package wsproxy
 
 import (
+	"bufio"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/url"
 
@@ -27,10 +27,13 @@ func parseAuthority(location *url.URL) string {
 }
 
 // StartConnectServer ...
-func StartConnectServer(server string) {
-	pool := x509.NewCertPool()
+func StartConnectServer(tcpConn *net.TCPConn, reader *bufio.Reader, writer *bufio.Writer, server string) {
+	defer tcpConn.Close()
+
+	fmt.Println("Start proxy with client:", tcpConn.RemoteAddr())
 
 	// 打开ca文件.
+	pool := x509.NewCertPool()
 	ca, err := ioutil.ReadFile(CaCerts)
 	if err == nil {
 		pool.AppendCertsFromPEM(ca)
@@ -74,6 +77,7 @@ func StartConnectServer(server string) {
 	}
 
 	// 发起网络连接到url.
+	fmt.Println("Connecting to:", url.Hostname(), "from", tcpConn.RemoteAddr())
 	conn, err := config.Dialer.Dial("tcp", parseAuthority(url) /*"echo.websocket.org:443"*/)
 	if err != nil {
 		fmt.Println("Dialer error", err.Error())
@@ -95,15 +99,64 @@ func StartConnectServer(server string) {
 		client.Close()
 		return
 	}
+	defer ws.Close()
+
+	fmt.Println("Established with:", url.Hostname(), "from", tcpConn.RemoteAddr())
 
 	// 开始使用ws对象收发websocket数据.
-	if _, err := ws.Write([]byte("hello, world!\n")); err != nil {
-		log.Fatal(err)
+	errCh := make(chan error, 2)
+	// origin -> ws
+	go func(dst *websocket.Conn, src *bufio.Reader) {
+		buf := make([]byte, 32*1024)
+		var err error
+
+		for {
+			nr, er := src.Read(buf)
+			if nr > 0 {
+				nw, ew := dst.Write(buf[0:nr])
+				if nw != nr {
+					err = ew
+					break
+				}
+			} else {
+				err = er
+				break
+			}
+		}
+
+		errCh <- err
+	}(ws, reader)
+
+	// ws -> origin
+	go func(dst *bufio.Writer, src *websocket.Conn) {
+		buf := make([]byte, 32*1024)
+		var err error
+
+		for {
+			nr, er := src.Read(buf)
+			if nr > 0 {
+				nw, ew := dst.Write(buf[0:nr])
+				if nw != nr {
+					err = ew
+					break
+				}
+			} else {
+				err = er
+				break
+			}
+		}
+
+		dst.Flush()
+		errCh <- err
+	}(writer, ws)
+
+	// 等待转发退出.
+	for i := 0; i < 2; i++ {
+		e := <-errCh
+		if e != nil {
+			break
+		}
 	}
-	var msg = make([]byte, 512)
-	var n int
-	if n, err = ws.Read(msg); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Received: %s.\n", msg[:n])
+
+	fmt.Println("Exit proxy with client:", tcpConn.RemoteAddr())
 }

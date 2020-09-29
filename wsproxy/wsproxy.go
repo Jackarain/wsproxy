@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 )
@@ -17,7 +18,7 @@ var (
 	ClientCert = ".wsproxy/certs/client.crt"
 	ClientKey  = ".wsproxy/certs/client.key"
 
-	ServerVerifyClientCert = true
+	ServerVerifyClientCert = false
 )
 
 // Configuration ...
@@ -40,13 +41,15 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		return
 	}
 
+	writer := bufio.NewWriter(conn)
+
 	if peek[0] == 0x05 {
 		// 如果是socks5协议, 则调用socks5协议库, 若是client模式直接使用tls转发到服务器.
-		fmt.Println("Socks5 protocol")
+		idx := rand.Intn(len(s.config.Servers))
+		StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 	} else if peek[0] == 0x47 {
 		// 如果'G', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
 		fmt.Println("Http proxy protocol")
-		StartConnectServer("wss://echo.websocket.org")
 	} else if peek[0] == 0x16 {
 		// 如果是tls协议, 则调用wss库处理socks协议, server处理tls加密的socks协议.
 		fmt.Println("TLS protocol")
@@ -58,6 +61,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 // NewServer ...
 func NewServer(serverList []string) *Server {
 	s := &Server{}
+
+	s.config.Servers = append(s.config.Servers, "wss://echo.websocket.org")
 
 	file, err := os.Open("config.json")
 	defer file.Close()

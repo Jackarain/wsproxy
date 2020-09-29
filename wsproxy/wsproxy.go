@@ -69,7 +69,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 func NewServer(serverList []string) *Server {
 	s := &Server{}
 
-	s.config.Servers = append(s.config.Servers, "wss://echo.websocket.org")
+	// s.config.Servers = append(s.config.Servers, "wss://echo.websocket.org")
 
 	file, err := os.Open("config.json")
 	defer file.Close()

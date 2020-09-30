@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	CaCerts = "/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
+	caCerts = "/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
 
 	ServerCert = ".wsproxy/certs/server.crt"
 	ServerKey  = ".wsproxy/certs/server.key"
@@ -27,10 +27,19 @@ type Configuration struct {
 	ServerVerifyClientCert bool     `json:"VerifyClientCert"`
 }
 
+// AuthHandlerFunc ...
+type AuthHandlerFunc func(string, string) bool
+
+// AuthHander interface ...
+type AuthHander interface {
+	Auth(string, string) bool
+}
+
 // Server ...
 type Server struct {
-	config Configuration
-	listen *net.TCPListener
+	config   Configuration
+	listen   *net.TCPListener
+	authFunc AuthHandlerFunc
 }
 
 func (s *Server) handleClientConn(conn *net.TCPConn) {
@@ -43,22 +52,30 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 
 	writer := bufio.NewWriter(conn)
 
+	idx := -1
+	if len(s.config.Servers) > 0 {
+		idx = rand.Intn(len(s.config.Servers))
+	}
+
 	if peek[0] == 0x05 {
 		// 如果是socks5协议, 则调用socks5协议库, 若是client模式直接使用tls转发到服务器.
-		numServer := len(s.config.Servers)
-		if numServer > 0 {
+		if idx > 0 {
 			// 随机选择一个上游服务器用于转发socks5协议.
-			idx := rand.Intn(numServer)
 			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 		} else {
 			// 没有配置上游服务器地址, 直接作为socks5服务器提供socks5服务.
-			StartSocks5Proxy(conn, reader, writer)
+			StartSocks5Proxy(conn, s.authFunc, reader, writer)
 		}
-	} else if peek[0] == 0x47 {
-		// 如果'G', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
-		fmt.Println("Http proxy protocol")
+	} else if peek[0] == 0x47 || peek[0] == 0x43 {
+		// 如果'G' 或 'C', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
+		if idx > 0 {
+			// 随机选择一个上游服务器用于转发http proxy协议.
+			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
+		} else {
+			StartHttpProxy(conn, s.authFunc, reader, writer)
+		}
 	} else if peek[0] == 0x16 {
-		// 如果是tls协议, 则调用wss库处理socks协议, server处理tls加密的socks协议.
+		// 如果是tls协议, 则调用wss库处理socks5/http proxy协议, server处理tls加密的socks5/http proxy协议.
 		fmt.Println("TLS protocol")
 	} else {
 		fmt.Println("Unknown protocol!")
@@ -99,6 +116,16 @@ func NewServer(serverList []string) *Server {
 
 // Start start wserver...
 func (s *Server) Start(addr string) error {
+	return s.StartWithAuth(addr, nil)
+}
+
+// AuthHandleFunc ...
+func (s *Server) AuthHandleFunc(handler func(string, string) bool) {
+	s.authFunc = handler
+}
+
+// StartWithAuth start wserver...
+func (s *Server) StartWithAuth(addr string, handler AuthHander) error {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	listen, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
@@ -106,6 +133,9 @@ func (s *Server) Start(addr string) error {
 	}
 
 	s.listen = listen
+	if handler != nil {
+		s.authFunc = handler.Auth
+	}
 
 	for {
 		c, err := s.listen.AcceptTCP()

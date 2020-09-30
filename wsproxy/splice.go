@@ -35,7 +35,7 @@ func StartConnectServer(tcpConn *net.TCPConn,
 
 	// 打开ca文件.
 	pool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile(CaCerts)
+	ca, err := ioutil.ReadFile(caCerts)
 	if err == nil {
 		pool.AppendCertsFromPEM(ca)
 	} else if ServerVerifyClientCert {

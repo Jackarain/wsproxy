@@ -46,7 +46,7 @@ func isIPv4(str string) bool {
 	return ip.To4() != nil
 }
 
-func authMethod(reader *bufio.Reader, writer *bufio.Writer) bool {
+func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Writer) bool {
 	defer writer.Flush()
 
 	av, err := reader.ReadByte()
@@ -86,21 +86,26 @@ func authMethod(reader *bufio.Reader, writer *bufio.Writer) bool {
 	passwd := string(pBuf)
 
 	// 执行认证操作, 认证通过.
-	if user == "admin" && passwd == "123456" {
+	if handler != nil {
+		if handler(user, passwd) {
+			writer.WriteByte(0x01)
+			writer.WriteByte(0x00)
+			return true
+		} else {
+			// 认证失败.
+			writer.WriteByte(0x01)
+			writer.WriteByte(0x01)
+		}
+	} else {
 		writer.WriteByte(0x01)
 		writer.WriteByte(0x00)
-		return true
 	}
-
-	// 认证失败.
-	writer.WriteByte(0x01)
-	writer.WriteByte(0x01)
 
 	return false
 }
 
 // StartSocks5Proxy ...
-func StartSocks5Proxy(tcpConn *net.TCPConn,
+func StartSocks5Proxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
 	// |VER | NMETHODS | METHODS  |
@@ -134,7 +139,7 @@ func StartSocks5Proxy(tcpConn *net.TCPConn,
 			fmt.Println("Socks5 methods read error", err.Error())
 			return
 		}
-		if method == socks5Auth {
+		if method == socks5Auth && handler != nil {
 			supportAuth = true
 		}
 	}
@@ -147,21 +152,27 @@ func StartSocks5Proxy(tcpConn *net.TCPConn,
 	}
 
 	// 支持加密, 则回复加密方法.
-	if supportAuth {
+	if supportAuth && handler != nil {
 		method = socks5Auth
 		err = writer.WriteByte(method)
 		if err != nil {
-			fmt.Println("Socks5 write method error", err.Error())
+			fmt.Println("Socks5 write socks5Auth error", err.Error())
 			return
 		}
-	} else {
-		// 不支持加密, 若服务器设置了用户认证, 客户端不使用用户密码认证, 则回复
-		// socks5AuthUnAcceptable, 表示拒绝.
-		// 这里使用socks5AuthNone通过客户端不使用用户密码认证.
+	} else if handler == nil {
+		// 服务器不支持加密, 直接通过.
 		method = socks5AuthNone
 		err = writer.WriteByte(method)
 		if err != nil {
-			fmt.Println("Socks5 write method error", err.Error())
+			fmt.Println("Socks5 write socks5AuthNone error", err.Error())
+			return
+		}
+	} else {
+		// 客户端不支持认证，服务器要求认证，返回socks5AuthUnAcceptable.
+		method = socks5AuthUnAcceptable
+		err = writer.WriteByte(method)
+		if err != nil {
+			fmt.Println("Socks5 write socks5AuthUnAcceptable error", err.Error())
 			return
 		}
 	}
@@ -169,7 +180,7 @@ func StartSocks5Proxy(tcpConn *net.TCPConn,
 
 	// Auth mode, read user passwd.
 	if supportAuth {
-		if !authMethod(reader, writer) {
+		if !authMethod(handler, reader, writer) {
 			fmt.Println("Socks5 auth not passed")
 		}
 	}

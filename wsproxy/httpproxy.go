@@ -79,40 +79,45 @@ func StartHttpProxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
 	}
 
 	user, passwd, ok := porxyAuth(req)
-	if handler != nil && ok {
-		if !handler(user, passwd) {
-			resp.Status = "401 Unauthorized"
-			resp.StatusCode = 401
-			resp.ContentLength = 0
+	if handler != nil {
+		if !ok {
+			resp.Status = "407 Proxy Authentication Required"
+			resp.StatusCode = 407
+			resp.ContentLength = -1
 
 			resp.Header = http.Header{
-				"Server":              []string{"nginx/1.19.0"},
-				"Proxy-Authorization": []string{req.Header.Get("Proxy-Authorization")},
+				"Proxy-Authorization": []string{"Basic realm=\"proxy\""},
 			}
 
 			writer.Write(makeResponse(&resp))
 			writer.Flush()
 
 			return
+		} else if !handler(user, passwd) {
+			resp.Status = "401 Unauthorized"
+			resp.StatusCode = 401
+			resp.ContentLength = 0
+
+			resp.Header = http.Header{
+				"Server":              []string{"nginx/1.19.0"},
+				"Proxy-Authorization": []string{"Basic realm=\"proxy\""},
+			}
+
+			writer.Write(makeResponse(&resp))
+			writer.Flush()
+
+			return
+		} else {
+			writer.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+			writer.Flush()
 		}
-
-		resp.Status = "200 Connection Established"
-		resp.StatusCode = 200
-		resp.ContentLength = -1
-		resp.Close = false
-
-		resp.Header = http.Header{
-			"Server":              []string{"nginx/1.199.0"},
-			"Proxy-Authorization": []string{req.Header.Get("Proxy-Authorization")},
-			"Proxy-Connection":    []string{"keep-alive"},
-			// "Connection":          []string{"keep-alive"},
-		}
-
-		writer.Write(makeResponse(&resp))
+	} else if handler == nil {
+		writer.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 		writer.Flush()
 	}
 
 	hostname := req.RequestURI
+	fmt.Println("Start connect to:", hostname)
 	targetConn, err := net.Dial("tcp", hostname)
 	if err != nil {
 		return

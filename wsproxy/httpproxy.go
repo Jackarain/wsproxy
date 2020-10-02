@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+var (
+	hs407 = "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authorization: Basic realm=\"proxy\"\r\n\r\n"
+	hs401 = "HTTP/1.1 401 Unauthorized\r\nProxy-Authorization: Basic realm=\"proxy\"\r\n\r\n"
+	hs200 = "HTTP/1.1 200 Connection established\r\n\r\n"
+)
+
 func porxyAuth(req *http.Request) (username, password string, ok bool) {
 	auth := req.Header.Get("Proxy-Authorization")
 	if auth == "" {
@@ -81,38 +87,21 @@ func StartHttpProxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
 	user, passwd, ok := porxyAuth(req)
 	if handler != nil {
 		if !ok {
-			resp.Status = "407 Proxy Authentication Required"
-			resp.StatusCode = 407
-			resp.ContentLength = -1
-
-			resp.Header = http.Header{
-				"Proxy-Authorization": []string{"Basic realm=\"proxy\""},
-			}
-
-			writer.Write(makeResponse(&resp))
+			writer.Write([]byte(hs407))
 			writer.Flush()
 
 			return
 		} else if !handler(user, passwd) {
-			resp.Status = "401 Unauthorized"
-			resp.StatusCode = 401
-			resp.ContentLength = 0
-
-			resp.Header = http.Header{
-				"Server":              []string{"nginx/1.19.0"},
-				"Proxy-Authorization": []string{"Basic realm=\"proxy\""},
-			}
-
-			writer.Write(makeResponse(&resp))
+			writer.Write([]byte(hs401))
 			writer.Flush()
 
 			return
 		} else {
-			writer.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+			writer.Write([]byte(hs200))
 			writer.Flush()
 		}
 	} else if handler == nil {
-		writer.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+		writer.Write([]byte(hs200))
 		writer.Flush()
 	}
 

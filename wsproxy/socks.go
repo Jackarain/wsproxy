@@ -107,11 +107,11 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 			writer.WriteByte(0x01)
 			writer.WriteByte(0x00)
 			return true
-		} else {
-			// 认证失败.
-			writer.WriteByte(0x01)
-			writer.WriteByte(0x01)
 		}
+
+		// 认证失败.
+		writer.WriteByte(0x01)
+		writer.WriteByte(0x01)
 	} else {
 		writer.WriteByte(0x01)
 		writer.WriteByte(0x00)
@@ -344,6 +344,4 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 			break
 		}
 	}
-
-	// fmt.Println("Leave socks5 proxy with client:", tcpConn.RemoteAddr())
 }

@@ -120,7 +120,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			// 随机选择一个上游服务器用于转发http proxy协议.
 			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 		} else {
-			StartHttpProxy(bc.rw, s.authFunc, reader, writer)
+			StartHTTPProxy(bc.rw, s.authFunc, reader, writer)
 			fmt.Println("Leave http proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x16 {
@@ -220,7 +220,7 @@ func (s *Server) handleUnixConn(conn net.Conn) {
 	if peek[0] == 0x05 {
 		StartSocks5Proxy(bc.rw, s.authFunc, reader, writer)
 	} else if peek[0] == 0x47 || peek[0] == 0x43 {
-		StartHttpProxy(bc.rw, s.authFunc, reader, writer)
+		StartHTTPProxy(bc.rw, s.authFunc, reader, writer)
 	} else {
 		fmt.Println("Unknown protocol!")
 	}

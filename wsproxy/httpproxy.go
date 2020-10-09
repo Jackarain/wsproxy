@@ -52,8 +52,8 @@ func makeResponse(resp *http.Response) []byte {
 	return buf.Bytes()
 }
 
-// StartHttpProxy ...
-func StartHttpProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
+// StartHTTPProxy ...
+func StartHTTPProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
 	fmt.Println("Start http proxy...")
@@ -129,6 +129,4 @@ func StartHttpProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 			break
 		}
 	}
-
-	// fmt.Println("Leave http proxy with client:", tcpConn.RemoteAddr())
 }

@@ -18,7 +18,7 @@ import (
 
 var (
 	// caCerts ...
-	caCerts = ".wsporxy/certs/ca.crt"
+	caCerts = ".wsproxy/certs/ca.crt"
 
 	// ServerCert ...
 	ServerCert = ".wsproxy/certs/server.crt"

@@ -28,11 +28,28 @@ type closeWriter interface {
 	CloseWrite() error
 }
 
-func proxy(dst io.Writer, src io.Reader, errCh chan error) {
-	_, err := io.Copy(dst, src)
-	if tcpConn, ok := dst.(closeWriter); ok {
-		tcpConn.CloseWrite()
+func proxy(dst bufio.Writer, src io.Reader, errCh chan error) {
+
+	buf := make([]byte, 32*1024)
+	var err error
+
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw != nr {
+				err = ew
+				break
+			}
+			dst.Flush()
+		} else {
+			err = er
+			break
+		}
 	}
+
+	dst.Flush()
+
 	errCh <- err
 }
 
@@ -317,8 +334,9 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	go proxy(targetConn, tcpConn, errCh)
-	go proxy(tcpConn, targetConn, errCh)
+	tw := bufio.NewWriter(targetConn)
+	go proxy(*tw, tcpConn.Reader, errCh)
+	go proxy(*tcpConn.Writer, targetConn, errCh)
 
 	// Wait
 	for i := 0; i < 2; i++ {

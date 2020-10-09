@@ -118,8 +118,9 @@ func StartHttpProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	go proxy(targetConn, tcpConn, errCh)
-	go proxy(tcpConn, targetConn, errCh)
+	tw := bufio.NewWriter(targetConn)
+	go proxy(*tw, tcpConn, errCh)
+	go proxy(*tcpConn.Writer, targetConn, errCh)
 
 	// Wait
 	for i := 0; i < 2; i++ {

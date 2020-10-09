@@ -149,6 +149,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			fmt.Println("tls connect to unix socket", err.Error())
 			return
 		}
+		defer c.Close()
 
 		errCh := make(chan error, 2)
 		go func(c net.Conn, wsconn *websocket.Websocket) {

@@ -202,8 +202,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 	fmt.Println("disconnect...")
 }
 
-func (s *Server) handleUnixConn(conn *net.Conn) {
-	bc := newBufferedConn(*conn)
+func (s *Server) handleUnixConn(conn net.Conn) {
+	bc := newBufferedConn(conn)
 	defer bc.Close()
 	reader := bc.rw.Reader
 	peek, err := reader.Peek(1)
@@ -311,7 +311,7 @@ func (s *Server) StartUnixSocket() error {
 			break
 		}
 
-		go s.handleUnixConn(&c)
+		go s.handleUnixConn(c)
 	}
 
 	return nil

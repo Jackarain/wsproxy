@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -23,6 +24,8 @@ var (
 
 	ClientCert = ".wsproxy/certs/client.crt"
 	ClientKey  = ".wsproxy/certs/client.key"
+
+	UnixSockAddr = "/tmp/wsproxy.sock"
 
 	ServerVerifyClientCert = false
 
@@ -45,8 +48,10 @@ type AuthHander interface {
 
 // Server ...
 type Server struct {
-	config   Configuration
-	listen   *net.TCPListener
+	config     Configuration
+	listen     *net.TCPListener
+	unixListen net.Listener
+
 	authFunc AuthHandlerFunc
 }
 
@@ -160,8 +165,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 	fmt.Println("disconnect...")
 }
 
-func (s *Server) handleUnixConn(conn *net.UnixConn) {
-	bc := newBufferedConn(conn)
+func (s *Server) handleUnixConn(conn *net.Conn) {
+	bc := newBufferedConn(*conn)
 	defer bc.Close()
 	reader := bc.rw.Reader
 	peek, err := reader.Peek(1)
@@ -238,6 +243,7 @@ func NewServer(serverList []string) *Server {
 
 // Start start wserver...
 func (s *Server) Start(addr string) error {
+	go s.StartUnixSocket()
 	return s.StartWithAuth(addr, nil)
 }
 
@@ -246,27 +252,30 @@ func (s *Server) AuthHandleFunc(handler func(string, string) bool) {
 	s.authFunc = handler
 }
 
-// StartWithAuthUnixSocket ...
-func (s *Server) StartWithAuthUnixSocket() error {
-	unixAddr, err := net.ResolveUnixAddr("unix", "/tmp/unix_sock")
-	if err != nil {
-		return err
+// StartUnixSocket ...
+func (s *Server) StartUnixSocket() error {
+	if err := os.RemoveAll(UnixSockAddr); err != nil {
+		log.Fatal(err)
 	}
-	unixListener, err := net.ListenUnix("unix", unixAddr)
+
+	listen, err := net.Listen("unix", UnixSockAddr)
 	if err != nil {
-		fmt.Println(err.Error())
-		return nil
+		log.Fatal("listen error:", err)
 	}
-	defer unixListener.Close()
+
+	s.unixListen = listen
 
 	for {
-		c, err := unixListener.AcceptUnix()
+		c, err := listen.Accept()
 		if err != nil {
-			return err
+			fmt.Println("StartUnixSocket, accept: ", err.Error())
+			break
 		}
 
-		go s.handleUnixConn(c)
+		go s.handleUnixConn(&c)
 	}
+
+	return nil
 }
 
 // StartWithAuth start wserver...
@@ -285,7 +294,7 @@ func (s *Server) StartWithAuth(addr string, handler AuthHander) error {
 	for {
 		c, err := s.listen.AcceptTCP()
 		if err != nil {
-			fmt.Println("Start Server, accept: ", err.Error())
+			fmt.Println("StartWithAuth, accept: ", err.Error())
 			break
 		}
 
@@ -299,5 +308,6 @@ func (s *Server) StartWithAuth(addr string, handler AuthHander) error {
 // Stop stop socks5 server ...
 func (s *Server) Stop() error {
 	s.listen.Close()
+	s.unixListen.Close()
 	return nil
 }

@@ -106,7 +106,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 
 	if peek[0] == 0x05 {
 		// 如果是socks5协议, 则调用socks5协议库, 若是client模式直接使用tls转发到服务器.
-		if idx > 0 {
+		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发socks5协议.
 			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 		} else {
@@ -116,7 +116,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		}
 	} else if peek[0] == 0x47 || peek[0] == 0x43 {
 		// 如果'G' 或 'C', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
-		if idx > 0 {
+		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发http proxy协议.
 			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 		} else {

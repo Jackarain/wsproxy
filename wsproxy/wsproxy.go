@@ -245,7 +245,6 @@ func initTLSServer() {
 		MinVersion:   tls.VersionTLS13,
 		RootCAs:      CertPool,
 		Certificates: []tls.Certificate{serverCert},
-		ServerName:   "Openvpn-server",
 	}
 }
 

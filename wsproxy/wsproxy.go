@@ -100,7 +100,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 		} else {
 			// 没有配置上游服务器地址, 直接作为socks5服务器提供socks5服务.
-			StartSocks5Proxy(conn, s.authFunc, reader, writer)
+			StartSocks5Proxy(bc.rw, s.authFunc, reader, writer)
+			fmt.Println("Leave socks5 proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x47 || peek[0] == 0x43 {
 		// 如果'G' 或 'C', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
@@ -108,7 +109,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			// 随机选择一个上游服务器用于转发http proxy协议.
 			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
 		} else {
-			StartHttpProxy(conn, s.authFunc, reader, writer)
+			StartHttpProxy(bc.rw, s.authFunc, reader, writer)
+			fmt.Println("Leave http proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x16 {
 		// 转换成TLS connection对象.
@@ -156,6 +158,26 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 	}
 
 	fmt.Println("disconnect...")
+}
+
+func (s *Server) handleUnixConn(conn *net.UnixConn) {
+	bc := newBufferedConn(conn)
+	defer bc.Close()
+	reader := bc.rw.Reader
+	peek, err := reader.Peek(1)
+	if err != nil {
+		return
+	}
+
+	writer := bc.rw.Writer
+
+	if peek[0] == 0x05 {
+		StartSocks5Proxy(bc.rw, s.authFunc, reader, writer)
+	} else if peek[0] == 0x47 || peek[0] == 0x43 {
+		StartHttpProxy(bc.rw, s.authFunc, reader, writer)
+	} else {
+		fmt.Println("Unknown protocol!")
+	}
 }
 
 func initTLSServer() {
@@ -222,6 +244,29 @@ func (s *Server) Start(addr string) error {
 // AuthHandleFunc ...
 func (s *Server) AuthHandleFunc(handler func(string, string) bool) {
 	s.authFunc = handler
+}
+
+// StartWithAuthUnixSocket ...
+func (s *Server) StartWithAuthUnixSocket() error {
+	unixAddr, err := net.ResolveUnixAddr("unix", "/tmp/unix_sock")
+	if err != nil {
+		return err
+	}
+	unixListener, err := net.ListenUnix("unix", unixAddr)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil
+	}
+	defer unixListener.Close()
+
+	for {
+		c, err := unixListener.AcceptUnix()
+		if err != nil {
+			return err
+		}
+
+		go s.handleUnixConn(c)
+	}
 }
 
 // StartWithAuth start wserver...

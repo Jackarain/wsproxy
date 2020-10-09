@@ -23,6 +23,8 @@ func main() {
 	server := wsproxy.NewServer(nil)
 
 	server.AuthHandleFunc(proxyAuth)
+
+	go server.StartWithAuthUnixSocket()
 	go server.Start("0.0.0.0:2080")
 
 	time.Sleep(time.Duration(5000) * time.Second)

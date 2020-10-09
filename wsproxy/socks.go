@@ -105,7 +105,7 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 }
 
 // StartSocks5Proxy ...
-func StartSocks5Proxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
+func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
 	// |VER | NMETHODS | METHODS  |
@@ -325,5 +325,5 @@ func StartSocks5Proxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
 		}
 	}
 
-	fmt.Println("Leave socks5 proxy with client:", tcpConn.RemoteAddr())
+	// fmt.Println("Leave socks5 proxy with client:", tcpConn.RemoteAddr())
 }

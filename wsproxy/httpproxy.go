@@ -53,7 +53,7 @@ func makeResponse(resp *http.Response) []byte {
 }
 
 // StartHttpProxy ...
-func StartHttpProxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
+func StartHttpProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 	// 读取client的request.
 	req, err := http.ReadRequest(reader)
@@ -126,5 +126,5 @@ func StartHttpProxy(tcpConn *net.TCPConn, handler AuthHandlerFunc,
 		}
 	}
 
-	fmt.Println("Leave http proxy with client:", tcpConn.RemoteAddr())
+	// fmt.Println("Leave http proxy with client:", tcpConn.RemoteAddr())
 }

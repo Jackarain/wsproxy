@@ -163,6 +163,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 						err = ew
 						break
 					}
+					bc.rw.Flush()
 				} else {
 					err = er
 					break

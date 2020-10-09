@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-var (
+const (
 	hs407 = "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authorization: Basic realm=\"proxy\"\r\n\r\n"
 	hs401 = "HTTP/1.1 401 Unauthorized\r\nProxy-Authorization: Basic realm=\"proxy\"\r\n\r\n"
 	hs200 = "HTTP/1.1 200 Connection established\r\n\r\n"

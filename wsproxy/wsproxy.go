@@ -197,11 +197,11 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 				break
 			}
 		}
+
+		fmt.Println("Unix disconnect...")
 	} else {
 		fmt.Println("Unknown protocol!")
 	}
-
-	fmt.Println("Unix disconnect...")
 }
 
 func (s *Server) handleUnixConn(conn net.Conn) {

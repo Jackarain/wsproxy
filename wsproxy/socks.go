@@ -184,6 +184,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	if supportAuth {
 		if !authMethod(handler, reader, writer) {
 			fmt.Println("Socks5 auth not passed")
+			return
 		}
 	}
 

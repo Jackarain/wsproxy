@@ -88,10 +88,6 @@ func (b bufferedConn) Read(p []byte) (int, error) {
 	return b.rw.Read(p)
 }
 
-func (b bufferedConn) Write(p []byte) (int, error) {
-	return b.rw.Write(p)
-}
-
 func (s *Server) handleClientConn(conn *net.TCPConn) {
 	bc := newBufferedConn(conn)
 	defer bc.Close()

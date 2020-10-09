@@ -124,6 +124,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			fmt.Println("Leave http proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x16 {
+		fmt.Println("Start tls connection...")
+
 		// 转换成TLS connection对象.
 		TLSConn := tls.Server(bc, ServerTLSConfig)
 
@@ -199,7 +201,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		fmt.Println("Unknown protocol!")
 	}
 
-	fmt.Println("disconnect...")
+	fmt.Println("Unix disconnect...")
 }
 
 func (s *Server) handleUnixConn(conn net.Conn) {

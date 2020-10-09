@@ -55,6 +55,9 @@ func makeResponse(resp *http.Response) []byte {
 // StartHttpProxy ...
 func StartHttpProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
+
+	fmt.Println("Start http proxy...")
+
 	// 读取client的request.
 	req, err := http.ReadRequest(reader)
 	if err != nil {

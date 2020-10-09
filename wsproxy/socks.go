@@ -108,6 +108,8 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
+	fmt.Println("Start socks5 proxy...")
+
 	// |VER | NMETHODS | METHODS  |
 	version, err := reader.ReadByte()
 	if err != nil {

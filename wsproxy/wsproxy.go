@@ -18,15 +18,13 @@ import (
 
 var (
 	// caCerts ...
-	caCerts = "/tmp/server/ca.crt" // "C:/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
+	caCerts = ".wsporxy/certs/ca.crt"
 
 	// ServerCert ...
-	ServerCert = "/tmp/server/server.crt"
-	// "C:/Users/Jack/Downloads/server/server.crt" // ".wsproxy/certs/server.crt"
+	ServerCert = ".wsproxy/certs/server.crt"
 
 	// ServerKey ...
-	ServerKey = "/tmp/server/server.key"
-	// "C:/Users/Jack/Downloads/server/server.key" // ".wsproxy/certs/server.key"
+	ServerKey = ".wsproxy/certs/server.key"
 
 	// ClientCert ...
 	ClientCert = ".wsproxy/certs/client.crt"

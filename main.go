@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
@@ -21,6 +23,12 @@ func proxyAuth(user, passwd string) bool {
 }
 
 func main() {
+	path, err := os.Getwd()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println("Current directory:", path)
+
 	flag.Parse()
 	/*
 		if help || len(os.Args) == 1 {

@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"time"
+	"os"
+	"os/signal"
 
 	"git.superpool.io/Jackarain/wsporxy/wsproxy"
 )
@@ -20,57 +21,23 @@ func proxyAuth(user, passwd string) bool {
 }
 
 func main() {
-	server := wsproxy.NewServer(nil)
-
-	server.AuthHandleFunc(proxyAuth)
-
-	go server.StartWithAuthUnixSocket()
-	go server.Start("0.0.0.0:2080")
-
-	time.Sleep(time.Duration(5000) * time.Second)
-
-	server.Stop()
-
+	flag.Parse()
 	/*
-		sock5server, _ := socks.NewSocks5Server()
-		go sock5server.Start("0.0.0.0:1080")
-
-		time.Sleep(time.Duration(5) * time.Second)
-
-		sock5server.Stop()
-
-		time.Sleep(time.Duration(5) * time.Second)
-
-		sock5server.FetchTraffic("")
-	*/
-
-	/*
-		flag.Parse()
 		if help || len(os.Args) == 1 {
 			flag.Usage()
 			return
 		}
 	*/
-}
 
-/*
-func hello(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "hello\n")
-}
+	server := wsproxy.NewServer(nil)
+	server.AuthHandleFunc(proxyAuth)
 
-func headers(w http.ResponseWriter, req *http.Request) {
-	for name, headers := range req.Header {
-		for _, h := range headers {
-			fmt.Fprintf(w, "%v: %v\n", name, h)
-		}
-	}
-}
-*/
-/*
-func wmain() {
-	http.HandleFunc("/hello", hello)
-	http.HandleFunc("/headers", headers)
+	go server.Start("0.0.0.0:2080")
 
-	http.ListenAndServe(":80", nil)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
+
+	<-c
+
+	server.Stop()
 }
-*/

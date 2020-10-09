@@ -247,11 +247,13 @@ func initTLSServer() {
 
 // NewServer ...
 func NewServer(serverList []string) *Server {
+	// Init tls server.
+	initTLSServer()
+
+	// Make server.
 	s := &Server{}
 
-	initTLSServer()
-	// s.config.Servers = append(s.config.Servers, "wss://echo.websocket.org")
-
+	// open config json file.
 	file, err := os.Open("config.json")
 	defer file.Close()
 	if err != nil {

@@ -157,7 +157,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 
 			for {
 				nr, er := c.Read(buf)
-				fmt.Println("buf", buf[0:nr])
+				fmt.Println("<-buf", buf[0:nr], er)
 				if nr > 0 {
 					ew := wsconn.WriteMessage(ws.OpBinary, buf[0:nr])
 					if ew != nil {
@@ -179,7 +179,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			for {
 				_, msg, er := wsconn.ReadMessage()
 				if len(msg) > 0 {
-					fmt.Println("msg", msg)
+					fmt.Println("->msg", msg, er)
 					nw, ew := c.Write(msg)
 					if nw != len(msg) {
 						err = ew

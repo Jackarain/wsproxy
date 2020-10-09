@@ -113,7 +113,6 @@ func StartConnectServer(tcpConn *net.TCPConn,
 
 		for {
 			nr, er := src.Read(buf)
-			fmt.Println("cli", buf[0:nr])
 			if nr > 0 {
 				nw, ew := dst.Write(buf[0:nr])
 				if nw != nr {
@@ -136,7 +135,6 @@ func StartConnectServer(tcpConn *net.TCPConn,
 
 		for {
 			nr, er := src.Read(buf)
-			fmt.Println("wss", buf[0:nr])
 			if nr > 0 {
 				nw, ew := dst.Write(buf[0:nr])
 				if nw != nr {

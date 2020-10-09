@@ -143,6 +143,7 @@ func StartConnectServer(tcpConn *net.TCPConn,
 					err = ew
 					break
 				}
+				dst.Flush()
 			} else {
 				err = er
 				break

@@ -17,18 +17,30 @@ import (
 )
 
 var (
-	caCerts = "C:/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
+	// caCerts ...
+	caCerts = "/tmp/server/ca.crt" // "C:/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
 
-	ServerCert = "C:/Users/Jack/Downloads/server/server.crt" // ".wsproxy/certs/server.crt"
-	ServerKey  = "C:/Users/Jack/Downloads/server/server.key" // ".wsproxy/certs/server.key"
+	// ServerCert ...
+	ServerCert = "/tmp/server/server.crt"
+	// "C:/Users/Jack/Downloads/server/server.crt" // ".wsproxy/certs/server.crt"
 
+	// ServerKey ...
+	ServerKey = "/tmp/server/server.key"
+	// "C:/Users/Jack/Downloads/server/server.key" // ".wsproxy/certs/server.key"
+
+	// ClientCert ...
 	ClientCert = ".wsproxy/certs/client.crt"
-	ClientKey  = ".wsproxy/certs/client.key"
 
+	// ClientKey ...
+	ClientKey = ".wsproxy/certs/client.key"
+
+	// UnixSockAddr ...
 	UnixSockAddr = "/tmp/wsproxy.sock"
 
+	// ServerVerifyClientCert ...
 	ServerVerifyClientCert = false
 
+	// ServerTLSConfig ...
 	ServerTLSConfig *tls.Config
 )
 
@@ -135,29 +147,60 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			return
 		}
 
-		for {
-			op, msg, err := wsconn.ReadMessage()
-			if err != nil {
-				fmt.Println("ws read fail", err.Error())
-				break
-			}
-
-			if len(msg) > 0 {
-				fmt.Println(string(msg))
-			}
-
-			if op == ws.OpClose {
-				break
-			}
-
-			err = wsconn.WriteMessage(op, msg)
-			if err != nil {
-				fmt.Println("ws read fail", err.Error())
-				break
-			}
-
+		// 连接unix socket.
+		c, err := net.Dial("unix", "/tmp/wsproxy.sock")
+		if err != nil {
+			fmt.Println("tls connect to unix socket", err.Error())
+			return
 		}
 
+		errCh := make(chan error, 2)
+		go func(c net.Conn, wsconn *websocket.Websocket) {
+			buf := make([]byte, 32*1024)
+			var err error
+
+			for {
+				nr, er := c.Read(buf)
+				if nr > 0 {
+					ew := wsconn.WriteMessage(ws.OpBinary, buf[0:nr])
+					if ew != nil {
+						err = ew
+						break
+					}
+				} else {
+					err = er
+					break
+				}
+			}
+
+			errCh <- err
+		}(c, wsconn)
+
+		go func(wsconn *websocket.Websocket, c net.Conn) {
+			var err error
+			for {
+				_, msg, er := wsconn.ReadMessage()
+				if len(msg) > 0 {
+					nw, ew := c.Write(msg)
+					if nw != len(msg) {
+						err = ew
+						break
+					}
+				} else {
+					err = er
+					break
+				}
+			}
+
+			errCh <- err
+		}(wsconn, c)
+
+		for i := 0; i < 2; i++ {
+			e := <-errCh
+			if e != nil {
+				break
+			}
+		}
 	} else {
 		fmt.Println("Unknown protocol!")
 	}

@@ -50,3 +50,5 @@ func (w *Websocket) WriteMessage(op ws.OpCode, data []byte) error {
 
 	return nil
 }
+
+// Read(p []byte) (n int, err error)

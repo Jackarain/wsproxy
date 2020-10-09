@@ -51,38 +51,42 @@ type Server struct {
 }
 
 type bufferedConn struct {
-	r        *bufio.Reader
+	rw       *bufio.ReadWriter
 	net.Conn // So that most methods are embedded
 }
 
 func newBufferedConn(c net.Conn) bufferedConn {
-	return bufferedConn{bufio.NewReader(c), c}
+	return bufferedConn{bufio.NewReadWriter(bufio.NewReader(c), bufio.NewWriter(c)), c}
 }
 
 func newBufferedConnSize(c net.Conn, n int) bufferedConn {
-	return bufferedConn{bufio.NewReaderSize(c, n), c}
+	return bufferedConn{bufio.NewReadWriter(bufio.NewReaderSize(c, n), bufio.NewWriterSize(c, n)), c}
 }
 
 func (b bufferedConn) Peek(n int) ([]byte, error) {
-	return b.r.Peek(n)
+	return b.rw.Peek(n)
 }
 
 func (b bufferedConn) Read(p []byte) (int, error) {
-	return b.r.Read(p)
+	return b.rw.Read(p)
+}
+
+func (b bufferedConn) Write(p []byte) (int, error) {
+	return b.rw.Write(p)
 }
 
 func (s *Server) handleClientConn(conn *net.TCPConn) {
 	bc := newBufferedConn(conn)
 	defer bc.Close()
 
-	reader := bc.r
+	reader := bc.rw.Reader
 	peek, err := reader.Peek(1)
 	if err != nil {
 		fmt.Println("Peek first byte error", err.Error())
 		return
 	}
 
-	writer := bufio.NewWriter(conn)
+	writer := bc.rw.Writer
 
 	idx := -1
 	if len(s.config.Servers) > 0 {
@@ -173,6 +177,7 @@ func initTLSServer() {
 		MinVersion:   tls.VersionTLS13,
 		RootCAs:      CertPool,
 		Certificates: []tls.Certificate{serverCert},
+		ServerName:   "Openvpn-server",
 	}
 }
 

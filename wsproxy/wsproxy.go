@@ -2,23 +2,31 @@ package wsproxy
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
+
+	"git.superpool.io/Jackarain/wsporxy/websocket"
+	"github.com/gobwas/ws"
 )
 
 var (
-	caCerts = "/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
+	caCerts = "C:/Users/jack/Downloads/cacert.pem" // ".wsporxy/certs/ca.crt"
 
-	ServerCert = ".wsproxy/certs/server.crt"
-	ServerKey  = ".wsproxy/certs/server.key"
+	ServerCert = "C:/Users/Jack/Downloads/server/server.crt" // ".wsproxy/certs/server.crt"
+	ServerKey  = "C:/Users/Jack/Downloads/server/server.key" // ".wsproxy/certs/server.key"
 
 	ClientCert = ".wsproxy/certs/client.crt"
 	ClientKey  = ".wsproxy/certs/client.key"
 
 	ServerVerifyClientCert = false
+
+	ServerTLSConfig *tls.Config
 )
 
 // Configuration ...
@@ -42,8 +50,32 @@ type Server struct {
 	authFunc AuthHandlerFunc
 }
 
+type bufferedConn struct {
+	r        *bufio.Reader
+	net.Conn // So that most methods are embedded
+}
+
+func newBufferedConn(c net.Conn) bufferedConn {
+	return bufferedConn{bufio.NewReader(c), c}
+}
+
+func newBufferedConnSize(c net.Conn, n int) bufferedConn {
+	return bufferedConn{bufio.NewReaderSize(c, n), c}
+}
+
+func (b bufferedConn) Peek(n int) ([]byte, error) {
+	return b.r.Peek(n)
+}
+
+func (b bufferedConn) Read(p []byte) (int, error) {
+	return b.r.Read(p)
+}
+
 func (s *Server) handleClientConn(conn *net.TCPConn) {
-	reader := bufio.NewReader(conn)
+	bc := newBufferedConn(conn)
+	defer bc.Close()
+
+	reader := bc.r
 	peek, err := reader.Peek(1)
 	if err != nil {
 		fmt.Println("Peek first byte error", err.Error())
@@ -75,10 +107,72 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			StartHttpProxy(conn, s.authFunc, reader, writer)
 		}
 	} else if peek[0] == 0x16 {
-		// 如果是tls协议, 则调用wss库处理socks5/http proxy协议, server处理tls加密的socks5/http proxy协议.
-		fmt.Println("TLS protocol")
+		// 转换成TLS connection对象.
+		TLSConn := tls.Server(bc, ServerTLSConfig)
+
+		// 开始握手.
+		err := TLSConn.Handshake()
+		if err != nil {
+			fmt.Println("tls connection handshake fail", err.Error())
+			return
+		}
+
+		// 创建websocket连接.
+		wsconn, err := websocket.NewWebsocket(TLSConn)
+		if err != nil {
+			fmt.Println("tls connection Upgrade to websocket", err.Error())
+			return
+		}
+
+		for {
+			op, msg, err := wsconn.ReadMessage()
+			if err != nil {
+				fmt.Println("ws read fail", err.Error())
+				break
+			}
+
+			if len(msg) > 0 {
+				fmt.Println(string(msg))
+			}
+
+			if op == ws.OpClose {
+				break
+			}
+
+			err = wsconn.WriteMessage(op, msg)
+			if err != nil {
+				fmt.Println("ws read fail", err.Error())
+				break
+			}
+
+		}
+
 	} else {
 		fmt.Println("Unknown protocol!")
+	}
+
+	fmt.Println("disconnect...")
+}
+
+func initTLSServer() {
+	// Server ca cert pool.
+	CertPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile(caCerts)
+	if err == nil {
+		CertPool.AppendCertsFromPEM(ca)
+	} else if ServerVerifyClientCert {
+		fmt.Println("Open ca file error", err.Error())
+	}
+
+	serverCert, err := tls.LoadX509KeyPair(ServerCert, ServerKey)
+	if err != nil {
+		fmt.Println("Open server cert file error", err.Error())
+	}
+
+	ServerTLSConfig = &tls.Config{
+		MinVersion:   tls.VersionTLS13,
+		RootCAs:      CertPool,
+		Certificates: []tls.Certificate{serverCert},
 	}
 }
 
@@ -86,6 +180,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 func NewServer(serverList []string) *Server {
 	s := &Server{}
 
+	initTLSServer()
 	// s.config.Servers = append(s.config.Servers, "wss://echo.websocket.org")
 
 	file, err := os.Open("config.json")

@@ -1,4 +1,4 @@
-## 一个支持websocket级联的socks5/http复合代理.
+## 一个支持websocket级联的socks5/http复合代理.
 
 支持在同一个端口同时提供websocket、socks5、http代理服务, 支持通过websocket级联代理.
 
@@ -27,7 +27,7 @@ ca.crt
 server.crt
 server.key
 
-local server端用到
+local server端用到
 ca.crt
 client.crt
 client.key

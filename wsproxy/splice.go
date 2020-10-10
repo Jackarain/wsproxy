@@ -119,11 +119,14 @@ func StartConnectServer(tcpConn *net.TCPConn,
 					err = ew
 					break
 				}
-				if er != nil {
-					err = er
+
+				if ew != nil {
+					err = ew
 					break
 				}
-			} else {
+			}
+
+			if er != nil {
 				err = er
 				break
 			}
@@ -146,11 +149,14 @@ func StartConnectServer(tcpConn *net.TCPConn,
 					break
 				}
 				dst.Flush()
-				if er != nil {
-					err = er
+
+				if ew != nil {
+					err = ew
 					break
 				}
-			} else {
+			}
+
+			if er != nil {
 				err = er
 				break
 			}

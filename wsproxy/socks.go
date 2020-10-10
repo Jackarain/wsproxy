@@ -209,7 +209,9 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	// 认证通过或非认证模式.
 	handshakeVersion, err := reader.ReadByte()
 	if err != nil || handshakeVersion != socks5Version {
-		fmt.Println("Socks5 read handshake version error", err.Error())
+		if err != nil {
+			fmt.Println("Socks5 read handshake version error", err.Error())
+		}
 		return
 	}
 
@@ -268,14 +270,18 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 		{
 			dnLen, err := reader.ReadByte()
 			if err != nil || int(dnLen) < 0 {
-				fmt.Println("Socks5 read domain len error", err.Error(), dnLen)
+				if err != nil {
+					fmt.Println("Socks5 read domain len error", err.Error(), dnLen)
+				}
 				return
 			}
 
 			domain := make([]byte, dnLen)
 			nr, err := reader.Read(domain)
 			if err != nil || nr != int(dnLen) {
-				fmt.Println("Socks5 read atyp domain error", err.Error(), domain)
+				if err != nil {
+					fmt.Println("Socks5 read atyp domain error", err.Error(), domain)
+				}
 				return
 			}
 

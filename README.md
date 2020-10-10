@@ -18,6 +18,8 @@ go build
 
 即可完成编译，编译生成可执行程序, (注意, 上图中local server和remote server是同一个程序).
 
+另外，remote server 可以配置多个以用于负载均衡，具体参考config.json.example文件.
+
 ## 说明
 
 证书文件必须位于程序运行目录的 .wsproxy/certs 下, 统一通过ca.crt签名出server和client证书.

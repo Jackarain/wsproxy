@@ -348,6 +348,10 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 
 	writer.Flush()
 
+	if err != nil {
+		return
+	}
+
 	// Start proxying
 	errCh := make(chan error, 2)
 	tw := bufio.NewWriter(targetConn)

@@ -303,6 +303,8 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	//  |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
 	writer.WriteByte(socks5Version)
 
+	fmt.Println("Scoks5 connect to", hostname)
+
 	// Start connect to target host.
 	targetConn, err := net.Dial("tcp", hostname)
 	if err != nil {

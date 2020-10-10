@@ -23,6 +23,13 @@ func init() {
 }
 
 func proxyAuth(user, passwd string) bool {
+	v, found := wsproxy.Users[user]
+	if !found {
+		return false
+	}
+	if v != passwd {
+		return false
+	}
 	return true
 }
 

@@ -44,13 +44,23 @@ var (
 
 	// ServerTLSConfig ...
 	ServerTLSConfig *tls.Config
+
+	// Users for auth ...
+	Users map[string]string
 )
+
+// UserInfo ...
+type UserInfo struct {
+	User   string
+	Passwd string
+}
 
 // Configuration ...
 type Configuration struct {
-	Servers                []string `json:"Servers"`
-	ServerVerifyClientCert bool     `json:"VerifyClientCert"`
-	Listen                 string   `json:"ListenAddr"`
+	Servers                []string   `json:"Servers"`
+	ServerVerifyClientCert bool       `json:"VerifyClientCert"`
+	Listen                 string     `json:"ListenAddr"`
+	Users                  []UserInfo `json:"Users"`
 }
 
 // AuthHandlerFunc ...
@@ -278,6 +288,12 @@ func NewServer(serverList []string) *Server {
 	if err != nil {
 		fmt.Println("Configuration decode error:", err)
 		return s
+	}
+
+	// 添加到Users容器中.
+	Users = make(map[string]string)
+	for _, v := range configuration.Users {
+		Users[v.User] = v.Passwd
 	}
 
 	s.config = configuration

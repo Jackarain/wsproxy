@@ -41,6 +41,10 @@ func proxy(dst bufio.Writer, src io.Reader, errCh chan error) {
 				break
 			}
 			dst.Flush()
+			if er != nil {
+				err = er
+				break
+			}
 		} else {
 			err = er
 			break

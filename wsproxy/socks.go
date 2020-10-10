@@ -80,7 +80,7 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 	uBuf := make([]byte, uLen)
 	nr, err := reader.Read(uBuf)
 	if err != nil || nr != int(uLen) {
-		fmt.Println("Socks5 auth user error", err.Error(), nr)
+		fmt.Println("Socks5 auth user error", nr)
 		return false
 	}
 
@@ -88,14 +88,14 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 
 	pLen, err := reader.ReadByte()
 	if err != nil || pLen <= 0 || pLen > 255 {
-		fmt.Println("Socks5 auth passwd length invalid")
+		fmt.Println("Socks5 auth passwd length invalid", pLen)
 		return false
 	}
 
 	pBuf := make([]byte, pLen)
 	nr, err = reader.Read(pBuf)
 	if err != nil || nr != int(pLen) {
-		fmt.Println("Socks5 auth passwd error", err.Error())
+		fmt.Println("Socks5 auth passwd error", pLen, nr)
 		return false
 	}
 
@@ -270,18 +270,14 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 		{
 			dnLen, err := reader.ReadByte()
 			if err != nil || int(dnLen) < 0 {
-				if err != nil {
-					fmt.Println("Socks5 read domain len error", err.Error(), dnLen)
-				}
+				fmt.Println("Socks5 read domain len error", dnLen)
 				return
 			}
 
 			domain := make([]byte, dnLen)
 			nr, err := reader.Read(domain)
 			if err != nil || nr != int(dnLen) {
-				if err != nil {
-					fmt.Println("Socks5 read atyp domain error", err.Error(), domain)
-				}
+				fmt.Println("Socks5 read atyp domain error", domain)
 				return
 			}
 

@@ -11,11 +11,15 @@ import (
 )
 
 var (
-	help bool
+	help     bool
+	config   string
+	bindaddr string
 )
 
 func init() {
 	flag.BoolVar(&help, "help", false, "help message")
+	flag.StringVar(&config, "config", "", "json config file")
+	flag.StringVar(&bindaddr, "addr", "0.0.0.0:2080", "proxy service address")
 }
 
 func proxyAuth(user, passwd string) bool {
@@ -30,17 +34,20 @@ func main() {
 	fmt.Println("Current directory:", path)
 
 	flag.Parse()
-	/*
-		if help || len(os.Args) == 1 {
-			flag.Usage()
-			return
-		}
-	*/
+
+	if help {
+		flag.Usage()
+		return
+	}
+
+	if config != "" {
+		wsproxy.JSONConfig = config
+	}
 
 	server := wsproxy.NewServer(nil)
 	server.AuthHandleFunc(proxyAuth)
 
-	go server.Start("0.0.0.0:2080")
+	go server.Start(bindaddr)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)

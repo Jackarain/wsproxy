@@ -36,6 +36,9 @@ var (
 	// UnixSockAddr ...
 	UnixSockAddr = "wsproxy.sock"
 
+	// JSONConfig ...
+	JSONConfig = "config.json"
+
 	// ServerVerifyClientCert ...
 	ServerVerifyClientCert = false
 
@@ -47,6 +50,7 @@ var (
 type Configuration struct {
 	Servers                []string `json:"Servers"`
 	ServerVerifyClientCert bool     `json:"VerifyClientCert"`
+	Listen                 string   `json:"ListenAddr"`
 }
 
 // AuthHandlerFunc ...
@@ -258,7 +262,7 @@ func NewServer(serverList []string) *Server {
 	s := &Server{}
 
 	// open config json file.
-	file, err := os.Open("config.json")
+	file, err := os.Open(JSONConfig)
 	defer file.Close()
 	if err != nil {
 		fmt.Println("Configuration open error:", err)
@@ -324,6 +328,10 @@ func (s *Server) StartUnixSocket() error {
 
 // StartWithAuth start wserver...
 func (s *Server) StartWithAuth(addr string, handler AuthHander) error {
+	if s.config.Listen != "" {
+		addr = s.config.Listen
+	}
+
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	listen, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {

@@ -316,14 +316,20 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	// rsv byte
 	writer.WriteByte(0)
 
-	hostport := targetConn.RemoteAddr().String()
-	host, _, _ := net.SplitHostPort(hostport)
-	if isIPv4(host) {
-		writer.WriteByte(socks5AtypIpv4)
-		writer.Write(net.ParseIP(host).To4())
-	} else if isIPv6(host) {
-		writer.WriteByte(socks5AtypIpv6)
-		writer.Write(net.ParseIP(host).To16())
+	if err == nil {
+		hostport := targetConn.RemoteAddr().String()
+		host, _, _ := net.SplitHostPort(hostport)
+		if isIPv4(host) {
+			writer.WriteByte(socks5AtypIpv4)
+			writer.Write(net.ParseIP(host).To4())
+		} else if isIPv6(host) {
+			writer.WriteByte(socks5AtypIpv6)
+			writer.Write(net.ParseIP(host).To16())
+		} else {
+			writer.WriteByte(socks5AtypDomainName)
+			writer.WriteByte(byte(len(hostname)))
+			writer.WriteString(hostname)
+		}
 	} else {
 		writer.WriteByte(socks5AtypDomainName)
 		writer.WriteByte(byte(len(hostname)))

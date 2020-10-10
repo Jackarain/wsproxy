@@ -16,7 +16,7 @@
 go build
 ```
 
-即可完成编译，编译生成可执行程序, (注意, 上图中local server和remote server是同一个程序).
+即可完成编译，编译生成可执行程序.
 
 ## 说明
 
@@ -35,3 +35,4 @@ client.key
 config.json 可参看 config.json.example 文件中的说明, 编写的config.json并放置于可执行程序同一目录.
 
 
+##### 相关讨论群 https://t.me/joinchat/C3WytT4RMvJ4lqxiJiIVhg

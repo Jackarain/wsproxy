@@ -359,6 +359,11 @@ func (s *Server) StartWithAuth(addr string, handler AuthHander) error {
 		s.authFunc = handler.Auth
 	}
 
+	// 如果没设置用户认证列表, 则表示无需认证.
+	if len(Users) == 0 {
+		s.authFunc = nil
+	}
+
 	for {
 		c, err := s.listen.AcceptTCP()
 		if err != nil {

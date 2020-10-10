@@ -23,6 +23,7 @@ func init() {
 }
 
 func proxyAuth(user, passwd string) bool {
+	// 认证用户名和密码.
 	v, found := wsproxy.Users[user]
 	if !found {
 		return false
@@ -30,6 +31,7 @@ func proxyAuth(user, passwd string) bool {
 	if v != passwd {
 		return false
 	}
+
 	return true
 }
 

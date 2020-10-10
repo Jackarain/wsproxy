@@ -108,7 +108,7 @@ func StartConnectServer(tcpConn *net.TCPConn,
 	errCh := make(chan error, 2)
 	// origin -> ws
 	go func(dst *websocket.Conn, src *bufio.Reader) {
-		buf := make([]byte, 32*1024)
+		buf := make([]byte, 256*1024)
 		var err error
 
 		for {
@@ -137,7 +137,7 @@ func StartConnectServer(tcpConn *net.TCPConn,
 
 	// ws -> origin
 	go func(dst *bufio.Writer, src *websocket.Conn) {
-		buf := make([]byte, 32*1024)
+		buf := make([]byte, 256*1024)
 		var err error
 
 		for {

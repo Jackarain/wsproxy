@@ -29,7 +29,7 @@ type closeWriter interface {
 }
 
 func proxy(dst bufio.Writer, src io.Reader, errCh chan error) {
-	buf := make([]byte, 32*1024)
+	buf := make([]byte, 256*1024)
 	var err error
 
 	for {

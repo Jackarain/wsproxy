@@ -168,7 +168,7 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 
 		errCh := make(chan error, 2)
 		go func(c net.Conn, wsconn *websocket.Websocket) {
-			buf := make([]byte, 32*1024)
+			buf := make([]byte, 256*1024)
 			var err error
 
 			for {

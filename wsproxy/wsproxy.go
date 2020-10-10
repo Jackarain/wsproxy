@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 
 	"git.superpool.io/Jackarain/wsporxy/websocket"
 	"github.com/gobwas/ws"
@@ -33,7 +34,7 @@ var (
 	ClientKey = ".wsproxy/certs/client.key"
 
 	// UnixSockAddr ...
-	UnixSockAddr = "/tmp/wsproxy.sock"
+	UnixSockAddr = "wsproxy.sock"
 
 	// ServerVerifyClientCert ...
 	ServerVerifyClientCert = false
@@ -296,6 +297,9 @@ func (s *Server) AuthHandleFunc(handler func(string, string) bool) {
 
 // StartUnixSocket ...
 func (s *Server) StartUnixSocket() error {
+	UnixSockAddr = filepath.Join(os.TempDir(), UnixSockAddr)
+	fmt.Println(UnixSockAddr)
+
 	if err := os.RemoveAll(UnixSockAddr); err != nil {
 		log.Fatal(err)
 	}

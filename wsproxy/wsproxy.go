@@ -297,14 +297,12 @@ func (s *Server) AuthHandleFunc(handler func(string, string) bool) {
 
 // StartUnixSocket ...
 func (s *Server) StartUnixSocket() error {
-	UnixSockAddr = filepath.Join(os.TempDir(), UnixSockAddr)
-	fmt.Println(UnixSockAddr)
-
-	if err := os.RemoveAll(UnixSockAddr); err != nil {
+	unixSockName := filepath.Join(os.TempDir(), UnixSockAddr)
+	if err := os.RemoveAll(unixSockName); err != nil {
 		log.Fatal(err)
 	}
 
-	listen, err := net.Listen("unix", UnixSockAddr)
+	listen, err := net.Listen("unix", unixSockName)
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}

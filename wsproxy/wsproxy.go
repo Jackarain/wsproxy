@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 
 	"gitee.com/jackarain/wsproxy/websocket"
 	"github.com/gobwas/ws"
@@ -47,6 +48,9 @@ var (
 
 	// Users for auth ...
 	Users map[string]string
+
+	// ConnectionID ...
+	ConnectionID uint64
 )
 
 // UserInfo ...
@@ -61,7 +65,7 @@ type Configuration struct {
 	ServerVerifyClientCert bool       `json:"VerifyClientCert"`
 	Listen                 string     `json:"ListenAddr"`
 	Users                  []UserInfo `json:"Users"`
-	UpstreamSocks5Server   string     `json:"UpstreamSocks5Server"`
+	UpstreamProxyServer    string     `json:"UpstreamProxyServer"`
 }
 
 // AuthHandlerFunc ...
@@ -107,13 +111,17 @@ func (b bufferedConn) Read(p []byte) (int, error) {
 }
 
 func (s *Server) handleClientConn(conn *net.TCPConn) {
+	// 计算连接id.
+	ID := atomic.AddUint64(&ConnectionID, 1)
+
+	// 创建带buffer的Connection.
 	bc := newBufferedConn(conn)
 	defer bc.Close()
 
 	reader := bc.rw.Reader
 	peek, err := reader.Peek(1)
 	if err != nil {
-		fmt.Println("Peek first byte error", err.Error())
+		fmt.Println(ID, "Peek first byte error", err.Error())
 		return
 	}
 
@@ -128,23 +136,23 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		// 如果是socks5协议, 则调用socks5协议库, 若是client模式直接使用tls转发到服务器.
 		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发socks5协议.
-			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
+			StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
 		} else {
 			// 没有配置上游服务器地址, 直接作为socks5服务器提供socks5服务.
-			StartSocks5Proxy(bc.rw, s.authFunc, reader, writer)
-			fmt.Println("Leave socks5 proxy with client:", conn.RemoteAddr())
+			StartSocks5Proxy(ID, bc.rw, s.authFunc, reader, writer)
+			fmt.Println(ID, "Leave socks5 proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x47 || peek[0] == 0x43 {
 		// 如果'G' 或 'C', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
 		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发http proxy协议.
-			StartConnectServer(conn, reader, writer, s.config.Servers[idx])
+			StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
 		} else {
-			StartHTTPProxy(bc.rw, s.authFunc, reader, writer)
-			fmt.Println("Leave http proxy with client:", conn.RemoteAddr())
+			StartHTTPProxy(ID, bc.rw, s.authFunc, reader, writer)
+			fmt.Println(ID, "Leave http proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x16 {
-		fmt.Println("Start tls connection...")
+		fmt.Println(ID, "Start tls connection...")
 
 		// 转换成TLS connection对象.
 		TLSConn := tls.Server(bc, ServerTLSConfig)
@@ -152,28 +160,28 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		// 开始握手.
 		err := TLSConn.Handshake()
 		if err != nil {
-			fmt.Println("tls connection handshake fail", err.Error())
+			fmt.Println(ID, "tls connection handshake fail", err.Error())
 			return
 		}
 
 		// 创建websocket连接.
 		wsconn, err := websocket.NewWebsocket(TLSConn)
 		if err != nil {
-			fmt.Println("tls connection Upgrade to websocket", err.Error())
+			fmt.Println(ID, "tls connection Upgrade to websocket", err.Error())
 			return
 		}
 
 		network := "unix"
 		addr := makeUnixSockName()
 
-		if s.config.UpstreamSocks5Server != "" {
+		if s.config.UpstreamProxyServer != "" {
 			network = "tcp"
-			addr = s.config.UpstreamSocks5Server
+			addr = s.config.UpstreamProxyServer
 		}
 
 		c, err := net.Dial(network, addr)
 		if err != nil {
-			fmt.Println("tls connect to target socket", err.Error())
+			fmt.Println(ID, "tls connect to target socket", err.Error())
 			return
 		}
 		defer c.Close()
@@ -227,9 +235,9 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			}
 		}
 
-		fmt.Println("Unix disconnect...")
+		fmt.Println(ID, "Proxy disconnect...")
 	} else {
-		fmt.Println("Unknown protocol!")
+		fmt.Println(ID, "Unknown protocol!")
 	}
 }
 
@@ -244,13 +252,19 @@ func (s *Server) handleUnixConn(conn net.Conn) {
 
 	writer := bc.rw.Writer
 
+	ID := atomic.AddUint64(&ConnectionID, 1)
+	fmt.Println(ID, "Start Unix connection...")
+
 	if peek[0] == 0x05 {
-		StartSocks5Proxy(bc.rw, s.authFunc, reader, writer)
+		StartSocks5Proxy(ID, bc.rw, s.authFunc, reader, writer)
 	} else if peek[0] == 0x47 || peek[0] == 0x43 {
-		StartHTTPProxy(bc.rw, s.authFunc, reader, writer)
+		StartHTTPProxy(ID, bc.rw, s.authFunc, reader, writer)
 	} else {
-		fmt.Println("Unknown protocol!")
+		fmt.Println(ID, "Unknown protocol!")
+		return
 	}
+
+	fmt.Println(ID, "Exit Unix connection!")
 }
 
 func initTLSServer() {
@@ -282,6 +296,8 @@ func NewServer(serverList []string) *Server {
 
 	// Make server.
 	s := &Server{}
+
+	ConnectionID = 0
 
 	// open config json file.
 	file, err := os.Open(JSONConfig)

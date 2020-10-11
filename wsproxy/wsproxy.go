@@ -61,6 +61,7 @@ type Configuration struct {
 	ServerVerifyClientCert bool       `json:"VerifyClientCert"`
 	Listen                 string     `json:"ListenAddr"`
 	Users                  []UserInfo `json:"Users"`
+	UpstreamSocks5Server   string     `json:"UpstreamSocks5Server"`
 }
 
 // AuthHandlerFunc ...
@@ -78,6 +79,10 @@ type Server struct {
 	unixListen net.Listener
 
 	authFunc AuthHandlerFunc
+}
+
+func makeUnixSockName() string {
+	return filepath.Join(os.TempDir(), UnixSockAddr)
 }
 
 type bufferedConn struct {
@@ -158,10 +163,17 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 			return
 		}
 
-		// 连接unix socket.
-		c, err := net.Dial("unix", "/tmp/wsproxy.sock")
+		network := "unix"
+		addr := makeUnixSockName()
+
+		if s.config.UpstreamSocks5Server != "" {
+			network = "tcp"
+			addr = s.config.UpstreamSocks5Server
+		}
+
+		c, err := net.Dial(network, addr)
 		if err != nil {
-			fmt.Println("tls connect to unix socket", err.Error())
+			fmt.Println("tls connect to target socket", err.Error())
 			return
 		}
 		defer c.Close()
@@ -317,7 +329,7 @@ func (s *Server) AuthHandleFunc(handler func(string, string) bool) {
 
 // StartUnixSocket ...
 func (s *Server) StartUnixSocket() error {
-	unixSockName := filepath.Join(os.TempDir(), UnixSockAddr)
+	unixSockName := makeUnixSockName()
 	if err := os.RemoveAll(unixSockName); err != nil {
 		log.Fatal(err)
 	}

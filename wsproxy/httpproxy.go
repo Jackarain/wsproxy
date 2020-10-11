@@ -53,15 +53,15 @@ func makeResponse(resp *http.Response) []byte {
 }
 
 // StartHTTPProxy ...
-func StartHTTPProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
+func StartHTTPProxy(ID uint64, tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
-	fmt.Println("Start http proxy...")
+	fmt.Println(ID, "Start http proxy...")
 
 	// 读取client的request.
 	req, err := http.ReadRequest(reader)
 	if err != nil {
-		fmt.Println("HttpProxy read request error", err.Error())
+		fmt.Println(ID, "HttpProxy read request error", err.Error())
 		return
 	}
 
@@ -109,7 +109,7 @@ func StartHTTPProxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	}
 
 	hostname := req.RequestURI
-	fmt.Println("Start connect to:", hostname)
+	fmt.Println(ID, "Start connect to:", hostname)
 	targetConn, err := net.Dial("tcp", hostname)
 	if err != nil {
 		return

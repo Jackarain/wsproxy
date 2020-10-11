@@ -1,4 +1,4 @@
-module git.superpool.io/Jackarain/wsporxy
+module gitee.com/jackarain/wsproxy
 
 go 1.14
 

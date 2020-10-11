@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 
-	"git.superpool.io/Jackarain/wsporxy/wsproxy"
+	"gitee.com/jackarain/wsproxy/wsproxy"
 )
 
 var (

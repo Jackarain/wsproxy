@@ -27,11 +27,11 @@ func parseAuthority(location *url.URL) string {
 }
 
 // StartConnectServer ...
-func StartConnectServer(tcpConn *net.TCPConn,
+func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	reader *bufio.Reader, writer *bufio.Writer, server string) {
 	defer tcpConn.Close()
 
-	fmt.Println("Start proxy with client:", tcpConn.RemoteAddr())
+	fmt.Println(ID, "Start proxy with client:", tcpConn.RemoteAddr())
 
 	// 打开ca文件.
 	pool := x509.NewCertPool()
@@ -39,19 +39,19 @@ func StartConnectServer(tcpConn *net.TCPConn,
 	if err == nil {
 		pool.AppendCertsFromPEM(ca)
 	} else if ServerVerifyClientCert {
-		fmt.Println("Open ca file error", err.Error())
+		fmt.Println(ID, "Open ca file error", err.Error())
 	}
 
 	// 加载客户端证书文件及key.
 	clientCert, err := tls.LoadX509KeyPair(ClientCert, ClientKey)
 	if err != nil && ServerVerifyClientCert {
-		fmt.Println("Open client cert file error", err.Error())
+		fmt.Println(ID, "Open client cert file error", err.Error())
 	}
 
 	// 创建一个websocket的配置.
 	config, err := websocket.NewConfig(server, server)
 	if err != nil {
-		fmt.Println("New client config error", err.Error())
+		fmt.Println(ID, "New client config error", err.Error())
 	}
 	// 设置Dialer为双栈模式, 以启用happyeballs.
 	config.Dialer = &net.Dialer{
@@ -68,7 +68,7 @@ func StartConnectServer(tcpConn *net.TCPConn,
 	// 解析url.
 	url, err := url.Parse(server)
 	if err != nil {
-		fmt.Println("Parse url error", err.Error())
+		fmt.Println(ID, "Parse url error", err.Error())
 		return
 	}
 
@@ -78,10 +78,10 @@ func StartConnectServer(tcpConn *net.TCPConn,
 	}
 
 	// 发起网络连接到url.
-	fmt.Println("Connecting to:", url.Hostname(), "from", tcpConn.RemoteAddr())
+	fmt.Println(ID, "Connecting to:", url.Hostname(), "from", tcpConn.RemoteAddr())
 	conn, err := config.Dialer.Dial("tcp", parseAuthority(url) /*"echo.websocket.org:443"*/)
 	if err != nil {
-		fmt.Println("Dialer error", err.Error())
+		fmt.Println(ID, "Dialer error", err.Error())
 		return
 	}
 
@@ -89,20 +89,20 @@ func StartConnectServer(tcpConn *net.TCPConn,
 	client := tls.Client(conn, config.TlsConfig)
 	err = client.Handshake()
 	if err != nil {
-		fmt.Println("Handshake error", err.Error())
+		fmt.Println(ID, "Handshake error", err.Error())
 		return
 	}
 
 	// tls握手完成后得到tls.Conn, 使用它来创建websocket客户端对象, 返回时已完成websocket握手.
 	ws, err := websocket.NewClient(config, client)
 	if err != nil {
-		fmt.Println("NewClient error", err.Error())
+		fmt.Println(ID, "NewClient error", err.Error())
 		client.Close()
 		return
 	}
 	defer ws.Close()
 
-	fmt.Println("Established with:", url.Hostname(), "from", tcpConn.RemoteAddr())
+	fmt.Println(ID, "Established with:", url.Hostname(), "from", tcpConn.RemoteAddr())
 
 	// 开始使用ws对象收发websocket数据.
 	errCh := make(chan error, 2)
@@ -174,5 +174,5 @@ func StartConnectServer(tcpConn *net.TCPConn,
 		}
 	}
 
-	fmt.Println("Exit proxy with client:", tcpConn.RemoteAddr())
+	fmt.Println(ID, "Exit proxy with client:", tcpConn.RemoteAddr())
 }

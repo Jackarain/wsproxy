@@ -69,25 +69,25 @@ func isIPv4(str string) bool {
 	return ip.To4() != nil
 }
 
-func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Writer) bool {
+func authMethod(ID uint64, handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Writer) bool {
 	defer writer.Flush()
 
 	av, err := reader.ReadByte()
 	if err != nil || av != 1 {
-		fmt.Println("Socks5 auth version invalid")
+		fmt.Println(ID, "Socks5 auth version invalid")
 		return false
 	}
 
 	uLen, err := reader.ReadByte()
 	if err != nil || uLen <= 0 || uLen > 255 {
-		fmt.Println("Socks5 auth user length invalid")
+		fmt.Println(ID, "Socks5 auth user length invalid")
 		return false
 	}
 
 	uBuf := make([]byte, uLen)
 	nr, err := reader.Read(uBuf)
 	if err != nil || nr != int(uLen) {
-		fmt.Println("Socks5 auth user error", nr)
+		fmt.Println(ID, "Socks5 auth user error", nr)
 		return false
 	}
 
@@ -95,14 +95,14 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 
 	pLen, err := reader.ReadByte()
 	if err != nil || pLen <= 0 || pLen > 255 {
-		fmt.Println("Socks5 auth passwd length invalid", pLen)
+		fmt.Println(ID, "Socks5 auth passwd length invalid", pLen)
 		return false
 	}
 
 	pBuf := make([]byte, pLen)
 	nr, err = reader.Read(pBuf)
 	if err != nil || nr != int(pLen) {
-		fmt.Println("Socks5 auth passwd error", pLen, nr)
+		fmt.Println(ID, "Socks5 auth passwd error", pLen, nr)
 		return false
 	}
 
@@ -128,31 +128,31 @@ func authMethod(handler AuthHandlerFunc, reader *bufio.Reader, writer *bufio.Wri
 }
 
 // StartSocks5Proxy ...
-func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
+func StartSocks5Proxy(ID uint64, tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
-	fmt.Println("Start socks5 proxy...")
+	fmt.Println(ID, "Start socks5 proxy...")
 
 	// |VER | NMETHODS | METHODS  |
 	version, err := reader.ReadByte()
 	if err != nil {
-		fmt.Println("Socks5 version read error", err.Error())
+		fmt.Println(ID, "Socks5 version read error", err.Error())
 		return
 	}
 
 	if version != socks5Version {
-		fmt.Println("Socks5 version invalid", version)
+		fmt.Println(ID, "Socks5 version invalid", version)
 		return
 	}
 
 	nmethods, err := reader.ReadByte()
 	if err != nil {
-		fmt.Println("Socks5 nmethods read error", err.Error())
+		fmt.Println(ID, "Socks5 nmethods read error", err.Error())
 		return
 	}
 
 	if nmethods < 0 || nmethods > 255 {
-		fmt.Println("Socks5 nmethods invalid", nmethods)
+		fmt.Println(ID, "Socks5 nmethods invalid", nmethods)
 		return
 	}
 
@@ -161,7 +161,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	for i := 0; i < int(nmethods); i++ {
 		method, err = reader.ReadByte()
 		if err != nil {
-			fmt.Println("Socks5 methods read error", err.Error())
+			fmt.Println(ID, "Socks5 methods read error", err.Error())
 			return
 		}
 		if method == socks5Auth && handler != nil {
@@ -172,7 +172,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	// |VER | METHOD |
 	err = writer.WriteByte(version)
 	if err != nil {
-		fmt.Println("Socks5 write version error", err.Error())
+		fmt.Println(ID, "Socks5 write version error", err.Error())
 		return
 	}
 
@@ -181,7 +181,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 		method = socks5Auth
 		err = writer.WriteByte(method)
 		if err != nil {
-			fmt.Println("Socks5 write socks5Auth error", err.Error())
+			fmt.Println(ID, "Socks5 write socks5Auth error", err.Error())
 			return
 		}
 	} else if handler == nil {
@@ -189,7 +189,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 		method = socks5AuthNone
 		err = writer.WriteByte(method)
 		if err != nil {
-			fmt.Println("Socks5 write socks5AuthNone error", err.Error())
+			fmt.Println(ID, "Socks5 write socks5AuthNone error", err.Error())
 			return
 		}
 	} else {
@@ -197,7 +197,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 		method = socks5AuthUnAcceptable
 		err = writer.WriteByte(method)
 		if err != nil {
-			fmt.Println("Socks5 write socks5AuthUnAcceptable error", err.Error())
+			fmt.Println(ID, "Socks5 write socks5AuthUnAcceptable error", err.Error())
 			return
 		}
 	}
@@ -205,8 +205,8 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 
 	// Auth mode, read user passwd.
 	if supportAuth {
-		if !authMethod(handler, reader, writer) {
-			fmt.Println("Socks5 auth not passed")
+		if !authMethod(ID, handler, reader, writer) {
+			fmt.Println(ID, "Socks5 auth not passed")
 			return
 		}
 	}
@@ -217,33 +217,33 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	handshakeVersion, err := reader.ReadByte()
 	if err != nil || handshakeVersion != socks5Version {
 		if err != nil {
-			fmt.Println("Socks5 read handshake version error", err.Error())
+			fmt.Println(ID, "Socks5 read handshake version error", err.Error())
 		}
 		return
 	}
 
 	command, err := reader.ReadByte()
 	if err != nil {
-		fmt.Println("Socks5 read command error", err.Error())
+		fmt.Println(ID, "Socks5 read command error", err.Error())
 		return
 	}
 	if command != socks5CmdConnect &&
 		command != socks5CmdBind &&
 		command != socks5CmdUDP {
-		fmt.Println("Socks5 read command invalid", command)
+		fmt.Println(ID, "Socks5 read command invalid", command)
 		return
 	}
 
 	reader.ReadByte() // rsv byte
 	atyp, err := reader.ReadByte()
 	if err != nil {
-		fmt.Println("Socks5 read atyp error", err.Error())
+		fmt.Println(ID, "Socks5 read atyp error", err.Error())
 		return
 	}
 	if atyp != socks5AtypDomainName &&
 		atyp != socks5AtypIpv4 &&
 		atyp != socks5AtypIpv6 {
-		fmt.Println("Socks5 read atyp invalid", atyp)
+		fmt.Println(ID, "Socks5 read atyp invalid", atyp)
 		return
 	}
 
@@ -254,7 +254,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 			IPv4Buf := make([]byte, 4)
 			nr, err := reader.Read(IPv4Buf)
 			if err != nil || nr != 4 {
-				fmt.Println("Socks5 read atyp ipv4 address error")
+				fmt.Println(ID, "Socks5 read atyp ipv4 address error")
 				return
 			}
 
@@ -266,7 +266,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 			IPv6Buf := make([]byte, 16)
 			nr, err := reader.Read(IPv6Buf)
 			if err != nil || nr != 16 {
-				fmt.Println("Socks5 read atyp ipv6 address error")
+				fmt.Println(ID, "Socks5 read atyp ipv6 address error")
 				return
 			}
 
@@ -277,14 +277,14 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 		{
 			dnLen, err := reader.ReadByte()
 			if err != nil || int(dnLen) < 0 {
-				fmt.Println("Socks5 read domain len error", dnLen)
+				fmt.Println(ID, "Socks5 read domain len error", dnLen)
 				return
 			}
 
 			domain := make([]byte, dnLen)
 			nr, err := reader.Read(domain)
 			if err != nil || nr != int(dnLen) {
-				fmt.Println("Socks5 read atyp domain error", domain)
+				fmt.Println(ID, "Socks5 read atyp domain error", domain)
 				return
 			}
 
@@ -294,13 +294,13 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 
 	portNum1, err := reader.ReadByte()
 	if err != nil {
-		fmt.Println("Socks5 read atyp port byte1 error")
+		fmt.Println(ID, "Socks5 read atyp port byte1 error")
 		return
 	}
 
 	portNum2, err := reader.ReadByte()
 	if err != nil {
-		fmt.Println("Socks5 read atyp port byte2 error")
+		fmt.Println(ID, "Socks5 read atyp port byte2 error")
 		return
 	}
 
@@ -310,7 +310,7 @@ func StartSocks5Proxy(tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	//  |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
 	writer.WriteByte(socks5Version)
 
-	fmt.Println("Scoks5 connect to", hostname)
+	fmt.Println(ID, "Scoks5 connect to", hostname)
 
 	// Start connect to target host.
 	targetConn, err := net.Dial("tcp", hostname)

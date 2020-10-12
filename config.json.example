@@ -1,7 +1,0 @@
-{
-    "VerifyClientCert": false,
-    "Users": [
-        {"User": "admin", "Passwd": "aa123456"},
-        {"User": "jackc", "Passwd": "aa123456"}
-    ]
-}

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -200,7 +201,9 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 						break
 					}
 					bc.rw.Flush()
-				} else {
+				}
+
+				if er != nil {
 					err = er
 					break
 				}
@@ -211,15 +214,23 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 
 		go func(wsconn *websocket.Websocket, c net.Conn) {
 			var err error
+
 			for {
 				_, msg, er := wsconn.ReadMessage()
 				if len(msg) > 0 {
 					nw, ew := c.Write(msg)
 					if nw != len(msg) {
+						err = io.ErrShortWrite
+						break
+					}
+
+					if ew != nil {
 						err = ew
 						break
 					}
-				} else {
+				}
+
+				if er != nil {
 					err = er
 					break
 				}

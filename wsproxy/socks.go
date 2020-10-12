@@ -37,7 +37,7 @@ func proxy(dst bufio.Writer, src io.Reader, errCh chan error) {
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
 			if nw != nr {
-				err = ew
+				err = io.ErrShortWrite
 				break
 			}
 			dst.Flush()

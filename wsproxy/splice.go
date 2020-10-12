@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -116,7 +117,7 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			if nr > 0 {
 				nw, ew := dst.Write(buf[0:nr])
 				if nw != nr {
-					err = ew
+					err = io.ErrShortWrite
 					break
 				}
 
@@ -145,7 +146,7 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			if nr > 0 {
 				nw, ew := dst.Write(buf[0:nr])
 				if nw != nr {
-					err = ew
+					err = io.ErrShortWrite
 					break
 				}
 				dst.Flush()

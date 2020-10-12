@@ -58,6 +58,7 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	config.Dialer = &net.Dialer{
 		DualStack: true,
 	}
+	// config.Header.Add("Content-Encoding", "deflate")
 
 	// 设置tls相关参数.
 	config.TlsConfig = &tls.Config{

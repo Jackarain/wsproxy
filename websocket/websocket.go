@@ -7,18 +7,31 @@ import (
 )
 
 type Websocket struct {
-	Conn *io.ReadWriter
+	Conn     *io.ReadWriter
+	Compress string
 }
 
 // NewWebsocket ...
 func NewWebsocket(conn io.ReadWriter) (*Websocket, error) {
-	_, err := ws.Upgrade(conn)
+	compress := ""
+
+	u := ws.Upgrader{
+		OnHeader: func(key, value []byte) (err error) {
+			if string(key) == "Content-Encoding" {
+				compress = string(value)
+			}
+			return
+		},
+	}
+
+	_, err := u.Upgrade(conn)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Websocket{
-		Conn: &conn,
+		Conn:     &conn,
+		Compress: compress,
 	}, nil
 }
 

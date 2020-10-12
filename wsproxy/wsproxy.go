@@ -407,8 +407,7 @@ func (s *Server) StartWithAuth(addr string, handler AuthHander) error {
 }
 
 // Stop stop socks5 server ...
-func (s *Server) Stop() error {
+func (s *Server) Stop() {
 	s.listen.Close()
 	s.unixListen.Close()
-	return nil
 }

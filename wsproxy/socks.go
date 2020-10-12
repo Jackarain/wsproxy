@@ -131,7 +131,7 @@ func authMethod(ID uint64, handler AuthHandlerFunc, reader *bufio.Reader, writer
 func StartSocks5Proxy(ID uint64, tcpConn *bufio.ReadWriter, handler AuthHandlerFunc,
 	reader *bufio.Reader, writer *bufio.Writer) {
 
-	fmt.Println(ID, "Start socks5 proxy...")
+	fmt.Println(ID, "* Start socks5 proxy...")
 
 	// |VER | NMETHODS | METHODS  |
 	version, err := reader.ReadByte()

@@ -111,6 +111,101 @@ func (b bufferedConn) Read(p []byte) (int, error) {
 	return b.rw.Read(p)
 }
 
+func (s *Server) startWSS(ID uint64, bc bufferedConn) {
+	fmt.Println(ID, "* Start tls connection...")
+
+	// 转换成TLS connection对象.
+	TLSConn := tls.Server(bc, ServerTLSConfig)
+
+	// 开始握手.
+	err := TLSConn.Handshake()
+	if err != nil {
+		fmt.Println(ID, "tls connection handshake fail", err.Error())
+		return
+	}
+
+	// 创建websocket连接.
+	wsconn, err := websocket.NewWebsocket(TLSConn)
+	if err != nil {
+		fmt.Println(ID, "tls connection Upgrade to websocket", err.Error())
+		return
+	}
+
+	network := "unix"
+	addr := makeUnixSockName()
+
+	if s.config.UpstreamProxyServer != "" {
+		network = "tcp"
+		addr = s.config.UpstreamProxyServer
+	}
+
+	c, err := net.Dial(network, addr)
+	if err != nil {
+		fmt.Println(ID, "tls connect to target socket", err.Error())
+		return
+	}
+	defer c.Close()
+
+	errCh := make(chan error, 2)
+	go func(c net.Conn, wsconn *websocket.Websocket) {
+		buf := make([]byte, 256*1024)
+		var err error
+
+		for {
+			nr, er := c.Read(buf)
+			if nr > 0 {
+				ew := wsconn.WriteMessage(ws.OpBinary, buf[0:nr])
+				if ew != nil {
+					err = ew
+					break
+				}
+				bc.rw.Flush()
+			}
+
+			if er != nil {
+				err = er
+				break
+			}
+		}
+
+		errCh <- err
+	}(c, wsconn)
+
+	go func(wsconn *websocket.Websocket, c net.Conn) {
+		var err error
+
+		for {
+			_, msg, er := wsconn.ReadMessage()
+			if len(msg) > 0 {
+				nw, ew := c.Write(msg)
+				if nw != len(msg) {
+					err = io.ErrShortWrite
+					break
+				}
+
+				if ew != nil {
+					err = ew
+					break
+				}
+			}
+
+			if er != nil {
+				err = er
+				break
+			}
+		}
+
+		errCh <- err
+	}(wsconn, c)
+
+	for i := 0; i < 2; i++ {
+		e := <-errCh
+		if e != nil {
+			break
+		}
+	}
+}
+
 func (s *Server) handleClientConn(conn *net.TCPConn) {
 	// 计算连接id.
 	ID := atomic.AddUint64(&ConnectionID, 1)
@@ -138,117 +233,27 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发socks5协议.
 			StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
+			fmt.Println(ID, "- Exit proxy with client:", conn.RemoteAddr())
 		} else {
 			// 没有配置上游服务器地址, 直接作为socks5服务器提供socks5服务.
 			StartSocks5Proxy(ID, bc.rw, s.authFunc, reader, writer)
-			fmt.Println(ID, "Leave socks5 proxy with client:", conn.RemoteAddr())
+			fmt.Println(ID, "- Leave socks5 proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x47 || peek[0] == 0x43 {
 		// 如果'G' 或 'C', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
 		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发http proxy协议.
 			StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
+			fmt.Println(ID, "- Exit proxy with client:", conn.RemoteAddr())
 		} else {
 			StartHTTPProxy(ID, bc.rw, s.authFunc, reader, writer)
-			fmt.Println(ID, "Leave http proxy with client:", conn.RemoteAddr())
+			fmt.Println(ID, "- Leave http proxy with client:", conn.RemoteAddr())
 		}
 	} else if peek[0] == 0x16 {
-		fmt.Println(ID, "Start tls connection...")
-
-		// 转换成TLS connection对象.
-		TLSConn := tls.Server(bc, ServerTLSConfig)
-
-		// 开始握手.
-		err := TLSConn.Handshake()
-		if err != nil {
-			fmt.Println(ID, "tls connection handshake fail", err.Error())
-			return
-		}
-
-		// 创建websocket连接.
-		wsconn, err := websocket.NewWebsocket(TLSConn)
-		if err != nil {
-			fmt.Println(ID, "tls connection Upgrade to websocket", err.Error())
-			return
-		}
-
-		network := "unix"
-		addr := makeUnixSockName()
-
-		if s.config.UpstreamProxyServer != "" {
-			network = "tcp"
-			addr = s.config.UpstreamProxyServer
-		}
-
-		c, err := net.Dial(network, addr)
-		if err != nil {
-			fmt.Println(ID, "tls connect to target socket", err.Error())
-			return
-		}
-		defer c.Close()
-
-		errCh := make(chan error, 2)
-		go func(c net.Conn, wsconn *websocket.Websocket) {
-			buf := make([]byte, 256*1024)
-			var err error
-
-			for {
-				nr, er := c.Read(buf)
-				if nr > 0 {
-					ew := wsconn.WriteMessage(ws.OpBinary, buf[0:nr])
-					if ew != nil {
-						err = ew
-						break
-					}
-					bc.rw.Flush()
-				}
-
-				if er != nil {
-					err = er
-					break
-				}
-			}
-
-			errCh <- err
-		}(c, wsconn)
-
-		go func(wsconn *websocket.Websocket, c net.Conn) {
-			var err error
-
-			for {
-				_, msg, er := wsconn.ReadMessage()
-				if len(msg) > 0 {
-					nw, ew := c.Write(msg)
-					if nw != len(msg) {
-						err = io.ErrShortWrite
-						break
-					}
-
-					if ew != nil {
-						err = ew
-						break
-					}
-				}
-
-				if er != nil {
-					err = er
-					break
-				}
-			}
-
-			errCh <- err
-		}(wsconn, c)
-
-		for i := 0; i < 2; i++ {
-			e := <-errCh
-			if e != nil {
-				break
-			}
-		}
-
-		fmt.Println(ID, "Proxy disconnect...")
+		s.startWSS(ID, bc)
+		fmt.Println(ID, "- WSS Proxy disconnect...")
 	} else {
-		fmt.Println(ID, "Unknown protocol!")
+		fmt.Println(ID, "- Unknown protocol!")
 	}
 }
 

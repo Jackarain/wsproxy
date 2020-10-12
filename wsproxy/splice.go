@@ -32,7 +32,7 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	reader *bufio.Reader, writer *bufio.Writer, server string) {
 	defer tcpConn.Close()
 
-	fmt.Println(ID, "Start proxy with client:", tcpConn.RemoteAddr())
+	fmt.Println(ID, "* Start proxy with client:", tcpConn.RemoteAddr())
 
 	// 打开ca文件.
 	pool := x509.NewCertPool()
@@ -174,6 +174,4 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			break
 		}
 	}
-
-	fmt.Println(ID, "Exit proxy with client:", tcpConn.RemoteAddr())
 }

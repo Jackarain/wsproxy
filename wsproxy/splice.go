@@ -31,8 +31,11 @@ func parseAuthority(location *url.URL) string {
 
 // StartConnectServer ...
 func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
-	reader *bufio.Reader, writer *bufio.Writer, server string) {
+	reader *bufio.Reader, writer *bufio.Writer, server string) (insize, tosize int) {
 	defer tcpConn.Close()
+
+	insize = 0
+	tosize = 0
 
 	fmt.Println(ID, "* Start proxy with client:", tcpConn.RemoteAddr())
 
@@ -130,7 +133,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			sbuf = buf
 
 			if nr > 0 {
-
 				if Encoding == "zlib" {
 					var gbuf bytes.Buffer
 					w := zlib.NewWriter(&gbuf)
@@ -147,6 +149,9 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 
 					sbuf = gbuf.Bytes()
 					nr = len(sbuf)
+					tosize = tosize + (nz - nr)
+				} else {
+					tosize = tosize + nr
 				}
 
 				nw, ew := dst.Write(sbuf[0:nr])
@@ -179,7 +184,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 		for {
 			nr, er := src.Read(buf)
 			if nr > 0 {
-
 				if Encoding == "zlib" {
 					b := bytes.NewReader(buf[0:nr])
 					r, ez := zlib.NewReader(b)
@@ -192,10 +196,12 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 						err = ez
 						break
 					}
+					insize = insize + (nn - nr)
 					nr = nn
 					r.Close()
 				} else {
 					sbuf = buf
+					insize = insize + nr
 				}
 
 				nw, ew := dst.Write(sbuf[0:nr])
@@ -228,4 +234,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			break
 		}
 	}
+
+	return
 }

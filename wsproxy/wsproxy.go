@@ -280,8 +280,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		// 如果是socks5协议, 则调用socks5协议库, 若是client模式直接使用tls转发到服务器.
 		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发socks5协议.
-			StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
-			fmt.Println(ID, "- Exit proxy with client:", conn.RemoteAddr())
+			insize, tosize := StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
+			fmt.Println(ID, "- Exit proxy with client:", conn.RemoteAddr(), insize, tosize)
 		} else {
 			// 没有配置上游服务器地址, 直接作为socks5服务器提供socks5服务.
 			StartSocks5Proxy(ID, bc.rw, s.authFunc, reader, writer)
@@ -291,8 +291,8 @@ func (s *Server) handleClientConn(conn *net.TCPConn) {
 		// 如果'G' 或 'C', 则按http proxy处理, 若是client模式直接使用tls转发到服务器.
 		if idx >= 0 {
 			// 随机选择一个上游服务器用于转发http proxy协议.
-			StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
-			fmt.Println(ID, "- Exit proxy with client:", conn.RemoteAddr())
+			insize, tosize := StartConnectServer(ID, conn, reader, writer, s.config.Servers[idx])
+			fmt.Println(ID, "- Exit proxy with client:", conn.RemoteAddr(), insize, tosize)
 		} else {
 			StartHTTPProxy(ID, bc.rw, s.authFunc, reader, writer)
 			fmt.Println(ID, "- Leave http proxy with client:", conn.RemoteAddr())

@@ -221,6 +221,8 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 					}
 					nr = nn
 					r.Close()
+				} else {
+					sbuf = msg
 				}
 
 				nw, ew := c.Write(sbuf[0:nr])

@@ -203,6 +203,8 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 					}
 					nr = nn
 					r.Close()
+				} else {
+					sbuf = buf
 				}
 
 				fmt.Println("wss->c, w", sbuf[0:nr])

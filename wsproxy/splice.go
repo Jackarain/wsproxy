@@ -2,6 +2,8 @@ package wsproxy
 
 import (
 	"bufio"
+	"bytes"
+	"compress/zlib"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -54,11 +56,20 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	if err != nil {
 		fmt.Println(ID, "New client config error", err.Error())
 	}
+
 	// 设置Dialer为双栈模式, 以启用happyeballs.
 	config.Dialer = &net.Dialer{
 		DualStack: true,
 	}
 	// config.Header.Add("Content-Encoding", "deflate")
+
+	if Encoding != "" {
+		if Encoding == "zlib" {
+			config.Header.Add("Content-Encoding", Encoding)
+		} else {
+			Encoding = ""
+		}
+	}
 
 	// 设置tls相关参数.
 	config.TlsConfig = &tls.Config{
@@ -112,11 +123,28 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	go func(dst *websocket.Conn, src *bufio.Reader) {
 		buf := make([]byte, 256*1024)
 		var err error
+		var sbuf []byte
 
 		for {
 			nr, er := src.Read(buf)
+			sbuf = buf
 			if nr > 0 {
-				nw, ew := dst.Write(buf[0:nr])
+
+				if Encoding == "zlib" {
+					var gbuf bytes.Buffer
+					w := zlib.NewWriter(&gbuf)
+					nz, ez := w.Write(buf[0:nr])
+					if ez != nil {
+						err = ez
+						break
+					}
+					w.Close()
+
+					sbuf = gbuf.Bytes()[0:nz]
+					nr = nz
+				}
+
+				nw, ew := dst.Write(sbuf[0:nr])
 				if nw != nr {
 					err = io.ErrShortWrite
 					break
@@ -140,12 +168,26 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	// ws -> origin
 	go func(dst *bufio.Writer, src *websocket.Conn) {
 		buf := make([]byte, 256*1024)
+		sbuf := make([]byte, 512*1024)
 		var err error
 
 		for {
 			nr, er := src.Read(buf)
+			sbuf = buf
 			if nr > 0 {
-				nw, ew := dst.Write(buf[0:nr])
+
+				if Encoding == "zlib" {
+					b := bytes.NewReader(buf[0:nr])
+					r, ez := zlib.NewReader(b)
+					if ez != nil {
+						err = ez
+						break
+					}
+					nr, er = r.Read(sbuf)
+					r.Close()
+				}
+
+				nw, ew := dst.Write(sbuf[0:nr])
 				if nw != nr {
 					err = io.ErrShortWrite
 					break

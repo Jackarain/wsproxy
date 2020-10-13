@@ -6,24 +6,24 @@ import (
 	"github.com/gobwas/ws"
 )
 
+// Websocket ...
 type Websocket struct {
 	Conn     *io.ReadWriter
-	Compress string
+	Encoding string
 }
 
 // NewWebsocket ...
 func NewWebsocket(conn io.ReadWriter) (*Websocket, error) {
-	compress := ""
+	encoding := ""
 
 	u := ws.Upgrader{
 		OnHeader: func(key, value []byte) (err error) {
 			if string(key) == "Content-Encoding" {
-				compress = string(value)
+				encoding = string(value)
 			}
 			return
 		},
 	}
-
 	_, err := u.Upgrade(conn)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func NewWebsocket(conn io.ReadWriter) (*Websocket, error) {
 
 	return &Websocket{
 		Conn:     &conn,
-		Compress: compress,
+		Encoding: encoding,
 	}, nil
 }
 
@@ -63,5 +63,3 @@ func (w *Websocket) WriteMessage(op ws.OpCode, data []byte) error {
 
 	return nil
 }
-
-// Read(p []byte) (n int, err error)

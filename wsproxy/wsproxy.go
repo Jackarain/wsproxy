@@ -2,6 +2,8 @@ package wsproxy
 
 import (
 	"bufio"
+	"bytes"
+	"compress/zlib"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -52,6 +54,9 @@ var (
 
 	// ConnectionID ...
 	ConnectionID uint64
+
+	// Encoding ...
+	Encoding string
 )
 
 // UserInfo ...
@@ -67,6 +72,7 @@ type Configuration struct {
 	Listen                 string     `json:"ListenAddr"`
 	Users                  []UserInfo `json:"Users"`
 	UpstreamProxyServer    string     `json:"UpstreamProxyServer"`
+	Encoding               string     `json:"Encoding"`
 }
 
 // AuthHandlerFunc ...
@@ -150,11 +156,28 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 	go func(c net.Conn, wsconn *websocket.Websocket) {
 		buf := make([]byte, 256*1024)
 		var err error
+		var sbuf []byte
 
 		for {
 			nr, er := c.Read(buf)
+			sbuf = buf
 			if nr > 0 {
-				ew := wsconn.WriteMessage(ws.OpBinary, buf[0:nr])
+
+				if wsconn.Encoding == "zlib" {
+					var gbuf bytes.Buffer
+					w := zlib.NewWriter(&gbuf)
+					nz, ez := w.Write(buf[0:nr])
+					if ez != nil {
+						err = ez
+						break
+					}
+					w.Close()
+
+					sbuf = gbuf.Bytes()[0:nz]
+					nr = nz
+				}
+
+				ew := wsconn.WriteMessage(ws.OpBinary, sbuf[0:nr])
 				if ew != nil {
 					err = ew
 					break
@@ -173,12 +196,27 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 
 	go func(wsconn *websocket.Websocket, c net.Conn) {
 		var err error
+		sbuf := make([]byte, 512*1024)
 
 		for {
 			_, msg, er := wsconn.ReadMessage()
+			sbuf = msg
+			nr := len(msg)
 			if len(msg) > 0 {
-				nw, ew := c.Write(msg)
-				if nw != len(msg) {
+
+				if Encoding == "zlib" {
+					b := bytes.NewReader(msg)
+					r, ez := zlib.NewReader(b)
+					if ez != nil {
+						err = ez
+						break
+					}
+					nr, er = r.Read(sbuf)
+					r.Close()
+				}
+
+				nw, ew := c.Write(sbuf[0:nr])
+				if nw != nr {
 					err = io.ErrShortWrite
 					break
 				}
@@ -342,6 +380,7 @@ func NewServer(serverList []string) *Server {
 
 	s.config = configuration
 	ServerVerifyClientCert = configuration.ServerVerifyClientCert
+	Encoding = configuration.Encoding
 
 	fmt.Println(s.config)
 

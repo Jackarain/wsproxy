@@ -78,9 +78,13 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	// 发起网络连接到url.
 	fmt.Println(ID, "Connecting to:", url.Hostname(), "from", tcpConn.RemoteAddr())
 
+	var header ws.HandshakeHeader
+	if Encoding == "zlib" {
+		header = ws.HandshakeHeaderString("Content-Encoding: zlib\r\n")
+	}
 	d := ws.Dialer{
 		TLSConfig: tlsConfig,
-		Header:    ws.HandshakeHeaderString("Content-Encoding: zlib\r\n"),
+		Header:    header,
 	}
 
 	c, _, _, err := d.Dial(context.Background(), server)

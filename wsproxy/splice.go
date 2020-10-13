@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/zlib"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -12,7 +13,8 @@ import (
 	"net"
 	"net/url"
 
-	"golang.org/x/net/websocket"
+	"gitee.com/jackarain/wsproxy/websocket"
+	"github.com/gobwas/ws"
 )
 
 var portMap = map[string]string{
@@ -54,28 +56,8 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 		fmt.Println(ID, "Open client cert file error", err.Error())
 	}
 
-	// 创建一个websocket的配置.
-	config, err := websocket.NewConfig(server, server)
-	if err != nil {
-		fmt.Println(ID, "New client config error", err.Error())
-	}
-
-	// 设置Dialer为双栈模式, 以启用happyeballs.
-	config.Dialer = &net.Dialer{
-		DualStack: true,
-	}
-	// config.Header.Add("Content-Encoding", "deflate")
-
-	if Encoding != "" {
-		if Encoding == "zlib" {
-			config.Header.Add("Content-Encoding", Encoding)
-		} else {
-			Encoding = ""
-		}
-	}
-
 	// 设置tls相关参数.
-	config.TlsConfig = &tls.Config{
+	tlsConfig := &tls.Config{
 		RootCAs:            pool,
 		Certificates:       []tls.Certificate{clientCert},
 		InsecureSkipVerify: !ServerVerifyClientCert,
@@ -89,41 +71,37 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	}
 
 	// 如果配置ServerName为空, 则添加一个默认hostname.
-	if config.TlsConfig.ServerName == "" {
-		config.TlsConfig.ServerName = url.Hostname()
+	if tlsConfig.ServerName == "" {
+		tlsConfig.ServerName = url.Hostname()
 	}
 
 	// 发起网络连接到url.
 	fmt.Println(ID, "Connecting to:", url.Hostname(), "from", tcpConn.RemoteAddr())
-	conn, err := config.Dialer.Dial("tcp", parseAuthority(url) /*"echo.websocket.org:443"*/)
+
+	d := ws.Dialer{
+		TLSConfig: tlsConfig,
+		Header:    ws.HandshakeHeaderString("Content-Encoding: zlib\r\n"),
+	}
+
+	c, _, _, err := d.Dial(context.Background(), server)
 	if err != nil {
 		fmt.Println(ID, "Dialer error", err.Error())
 		return
 	}
 
-	// 通过建立的网络连接配置tls, 然后发起握手.
-	client := tls.Client(conn, config.TlsConfig)
-	err = client.Handshake()
-	if err != nil {
-		fmt.Println(ID, "Handshake error", err.Error())
-		return
-	}
+	defer c.Close()
 
-	// tls握手完成后得到tls.Conn, 使用它来创建websocket客户端对象, 返回时已完成websocket握手.
-	ws, err := websocket.NewClient(config, client)
-	if err != nil {
-		fmt.Println(ID, "NewClient error", err.Error())
-		client.Close()
-		return
+	rw := c.(io.ReadWriter)
+	conn := &websocket.Websocket{
+		Conn: &rw,
 	}
-	defer ws.Close()
 
 	fmt.Println(ID, "Established with:", url.Hostname(), "from", tcpConn.RemoteAddr())
 
 	// 开始使用ws对象收发websocket数据.
 	errCh := make(chan error, 2)
 	// origin -> ws
-	go func(dst *websocket.Conn, src *bufio.Reader) {
+	go func(dst *websocket.Websocket, src *bufio.Reader) {
 		buf := make([]byte, 256*1024)
 		var err error
 		var sbuf []byte
@@ -154,12 +132,7 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 					tosize = tosize + nr
 				}
 
-				nw, ew := dst.Write(sbuf[0:nr])
-				if nw != nr {
-					err = io.ErrShortWrite
-					break
-				}
-
+				ew := dst.WriteMessage(ws.OpBinary, sbuf[0:nr])
 				if ew != nil {
 					err = ew
 					break
@@ -173,16 +146,16 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 		}
 
 		errCh <- err
-	}(ws, reader)
+	}(conn, reader)
 
 	// ws -> origin
-	go func(dst *bufio.Writer, src *websocket.Conn) {
-		buf := make([]byte, 256*1024)
+	go func(dst *bufio.Writer, src *websocket.Websocket) {
 		sbuf := make([]byte, 512*1024)
 		var err error
 
 		for {
-			nr, er := src.Read(buf)
+			_, buf, er := src.ReadMessage()
+			nr := len(buf)
 			if nr > 0 {
 				if Encoding == "zlib" {
 					b := bytes.NewReader(buf[0:nr])
@@ -193,8 +166,11 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 					}
 					nn, ez := r.Read(sbuf)
 					if ez != nil && ez != io.EOF {
-						err = ez
-						break
+						er = ez
+						if nn <= 0 {
+							err = ez
+							break
+						}
 					}
 					insize = insize + (nn - nr)
 					nr = nn
@@ -225,7 +201,7 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 
 		dst.Flush()
 		errCh <- err
-	}(writer, ws)
+	}(writer, conn)
 
 	// 等待转发退出.
 	for i := 0; i < 2; i++ {

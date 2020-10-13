@@ -200,7 +200,6 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 
 		for {
 			_, msg, er := wsconn.ReadMessage()
-			sbuf = msg
 			nr := len(msg)
 			if len(msg) > 0 {
 

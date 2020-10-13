@@ -184,9 +184,8 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 
 		for {
 			nr, er := src.Read(buf)
-			sbuf = buf
 
-			fmt.Println("wss->c, r", sbuf[0:nr])
+			fmt.Println("wss->c, r", buf[0:nr])
 
 			if nr > 0 {
 

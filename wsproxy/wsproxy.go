@@ -204,7 +204,7 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 			nr := len(msg)
 			if len(msg) > 0 {
 
-				if Encoding == "zlib" {
+				if wsconn.Encoding == "zlib" {
 					b := bytes.NewReader(msg)
 					r, ez := zlib.NewReader(b)
 					if ez != nil {
@@ -212,6 +212,10 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 						break
 					}
 					nr, er = r.Read(sbuf)
+					if er != nil && er != io.EOF {
+						err = er
+						break
+					}
 					r.Close()
 				}
 

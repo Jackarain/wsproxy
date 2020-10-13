@@ -134,17 +134,21 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 					var gbuf bytes.Buffer
 					w := zlib.NewWriter(&gbuf)
 					nz, ez := w.Write(buf[0:nr])
+					if nz != nr {
+						err = io.ErrShortWrite
+						break
+					}
 					if ez != nil {
 						err = ez
 						break
 					}
 					w.Close()
 
-					sbuf = gbuf.Bytes()[0:nz]
-					nr = nz
+					sbuf = gbuf.Bytes()
+					nr = len(sbuf)
 				}
 
-				nw, ew := dst.Write(sbuf[0:nr])
+				nw, ew := dst.Write(sbuf)
 				if nw != nr {
 					err = io.ErrShortWrite
 					break
@@ -184,6 +188,10 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 						break
 					}
 					nr, er = r.Read(sbuf)
+					if er != nil && er != io.EOF {
+						err = er
+						break
+					}
 					r.Close()
 				}
 

@@ -23,8 +23,7 @@ go build
 ## 说明
 
 证书文件必须位于程序运行目录的 .wsproxy/certs 下, 统一通过ca.crt签名出server和client证书.
-
-证书创建可以参考网上教程，如 https://openvpn.net/community-resources/setting-up-your-own-certificate-authority-ca/
+证书创建可以参考网上教程，如 https://openvpn.net/community-resources/setting-up-your-own-certificate-authority-ca/
 
 remote server端用到
 ca.crt

@@ -167,14 +167,18 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 					var gbuf bytes.Buffer
 					w := zlib.NewWriter(&gbuf)
 					nz, ez := w.Write(buf[0:nr])
+					if nz != nr {
+						err = io.ErrShortWrite
+						break
+					}
 					if ez != nil {
 						err = ez
 						break
 					}
 					w.Close()
 
-					sbuf = gbuf.Bytes()[0:nz]
-					nr = nz
+					sbuf = gbuf.Bytes()
+					nr = len(sbuf)
 				}
 
 				ew := wsconn.WriteMessage(ws.OpBinary, sbuf[0:nr])
@@ -210,11 +214,12 @@ func (s *Server) startWSS(ID uint64, bc bufferedConn) {
 						err = ez
 						break
 					}
-					nr, er = r.Read(sbuf)
-					if er != nil && er != io.EOF {
-						err = er
+					nn, ez := r.Read(sbuf)
+					if ez != nil && ez != io.EOF {
+						err = ez
 						break
 					}
+					nr = nn
 					r.Close()
 				}
 

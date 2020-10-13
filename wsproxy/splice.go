@@ -129,8 +129,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			nr, er := src.Read(buf)
 			sbuf = buf
 
-			fmt.Println("c->wss, r", sbuf[0:nr])
-
 			if nr > 0 {
 
 				if Encoding == "zlib" {
@@ -151,8 +149,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 					nr = len(sbuf)
 				}
 
-				fmt.Println("c->wss, w", sbuf[0:nr])
-
 				nw, ew := dst.Write(sbuf[0:nr])
 				if nw != nr {
 					err = io.ErrShortWrite
@@ -171,8 +167,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 			}
 		}
 
-		fmt.Println("c->wss exit")
-
 		errCh <- err
 	}(ws, reader)
 
@@ -184,9 +178,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 
 		for {
 			nr, er := src.Read(buf)
-
-			fmt.Println("wss->c, r", buf[0:nr])
-
 			if nr > 0 {
 
 				if Encoding == "zlib" {
@@ -207,7 +198,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 					sbuf = buf
 				}
 
-				fmt.Println("wss->c, w", sbuf[0:nr])
 				nw, ew := dst.Write(sbuf[0:nr])
 				if nw != nr {
 					err = io.ErrShortWrite
@@ -228,9 +218,6 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 		}
 
 		dst.Flush()
-
-		fmt.Println("wss->c exit", err.Error())
-
 		errCh <- err
 	}(writer, ws)
 

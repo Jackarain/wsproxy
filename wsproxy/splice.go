@@ -31,6 +31,24 @@ func parseAuthority(location *url.URL) string {
 	return location.Host
 }
 
+func readFull(r io.Reader) (buf []byte, err error) {
+	buf = make([]byte, 256*1024)
+	n := 0
+	for err == nil {
+		var nn int
+		nn, err = r.Read(buf[n:])
+		n += nn
+		if err == nil && n == len(buf) {
+			blen := 2 * n
+			tmp := make([]byte, blen)
+			copy(tmp, buf)
+			buf = tmp
+		}
+	}
+	buf = buf[:n]
+	return
+}
+
 // StartConnectServer ...
 func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 	reader *bufio.Reader, writer *bufio.Writer, server string) (insize, tosize int) {
@@ -154,8 +172,8 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 
 	// ws -> origin
 	go func(dst *bufio.Writer, src *websocket.Websocket) {
-		sbuf := make([]byte, 512*1024)
 		var err error
+		var sbuf []byte
 
 		for {
 			_, buf, er := src.ReadMessage()
@@ -168,7 +186,8 @@ func StartConnectServer(ID uint64, tcpConn *net.TCPConn,
 						err = ez
 						break
 					}
-					nn, ez := r.Read(sbuf)
+					sbuf, ez = readFull(r)
+					nn := len(sbuf)
 					if ez != nil && ez != io.EOF {
 						er = ez
 						if nn <= 0 {
